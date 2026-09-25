@@ -6,29 +6,27 @@ An open-source configuration for coordinating a main Codex agent and specialist 
 
 > Community project; not an official OpenAI configuration. Named models and roles depend on your Codex environment.
 
-## Why we made this
+## The problem we want to solve
 
-The original rules lived as a long block in Codex personalization settings. That worked for one person but was hard to version, review, share, and improve together. The rules address a practical problem: an agent may delegate tiny actions, call an advanced advisor for ordinary work, let workers overwrite one another, or accept a subagent's summary without checking the result.
+A multi-model Codex setup offers different levels of capability, speed, and cost, but those differences alone do not tell an agent **who should do what, when to ask for deeper analysis, or who is accountable for the result**. Without a working agreement, routine searches can consume an advanced model's time while a consequential architecture decision receives only routine treatment. A main agent may begin implementation before resolving a risky choice, keep patching after repeated failures, or delegate so loosely that workers lack context, collide on files, and return claims nobody verifies.
 
-We moved the rules into a public GitHub repository so people can see exactly what they do, choose a language, adapt them to their environment, and propose changes through issues and pull requests.
+The goal is to put the right level of reasoning on the right decision while keeping one accountable owner for the user's task. This is why the rules specify a default main agent, distinct reader and worker roles, precise escalation points, and final acceptance by the main agent. The aim is reliable results with deliberate use of time and model capacity, not the largest possible agent team.
 
-## How it addresses the problem
+The rules first lived in Codex personalization settings. Publishing them here makes that working agreement versioned, inspectable, adaptable, and open to improvement by others.
 
-1. **Clear ownership:** the main agent owns the goal, decisions, integration, and final verification.
-2. **Selective delegation:** bounded independent work can go to a subagent; small work stays with the main agent.
-3. **Defined deep-review triggers:** Astra is consulted for consequential architecture or interface changes, material tradeoffs, two failed evidence-based repairs, or an explicit request for deep review.
-4. **Evidence at handoff:** every delegated task names its scope and expected evidence; the main agent checks artifacts before declaring completion.
-5. **Honest capability handling:** unavailable roles or models are reported rather than silently substituted.
+## How the rules work
 
-These are workflow preferences. They do not override the user's instructions, project constraints, permissions, or actual tool availability.
+| Stage | Responsibility | Why it matters |
+| --- | --- | --- |
+| Lead | Sol Medium normally holds the goal, constraints, decisions, and final acceptance; a user-selected main model takes precedence. | The task keeps one owner even when several models contribute. |
+| Gather and execute | Luna reads sources or makes bounded changes; Sol High handles bounded execution that needs more reasoning. Simple tasks stay with the lead. | Routine work uses an appropriate specialist without making every small action a delegation. |
+| Escalate a decision | Astra High gives read-only advice before important architecture, public-interface, or data-model changes; on material tradeoffs; after two evidence-based failed repairs; or when explicitly requested. | High-impact choices get independent analysis before dependent implementation. |
+| Handoff | The lead gives each worker the goal, constraints, file ownership, completion criteria, and evidence to return. Independent context is preferred when supported. | Workers receive enough context without carrying an entire prior conversation, and parallel edits stay coordinated. |
+| Decide and verify | The lead evaluates Astra's advice, chooses a course, inspects changed files and checks, then reports the outcome. | Advice and worker summaries never replace the lead's judgment or acceptance. |
 
-| Common failure | Rule used here |
-| --- | --- |
-| Too many subagents for small tasks | Delegate only clear, independent work. |
-| Critical decisions without review | Use the defined Astra triggers. |
-| Workers collide on files | Assign file or module ownership and disclose other collaborators. |
-| Unavailable models are quietly replaced | State the limitation and the affected decision. |
-| Summaries are mistaken for proof | Inspect artifacts and focused verification evidence. |
+For example, if a task changes a public API used by several modules, Luna can map the affected code, Astra can compare viable interface designs, and the main agent can choose one before implementation starts. Workers then own separate files or modules and return focused verification evidence. The main agent checks the actual changes before finishing. A small local edit would normally stay with the main agent and skip that ceremony.
+
+If a named role is unavailable, the agent should report the limitation and the decision it affects, then continue independent work. It must not silently present another model's output as Astra's conclusion. These are workflow preferences; they do not override the user's instructions, project constraints, permissions, or actual tool availability.
 
 ## Files
 
