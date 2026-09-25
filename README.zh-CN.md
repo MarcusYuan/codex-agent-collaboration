@@ -61,10 +61,10 @@
 git clone https://github.com/MarcusYuan/codex-agent-collaboration.git
 cd codex-agent-collaboration
 mkdir -p ~/.codex
-cp AGENTS.zh-CN.md ~/.codex/AGENTS.md
+cp -n AGENTS.zh-CN.md ~/.codex/AGENTS.md
 ```
 
-只有在全局 AGENTS.md 尚不存在时才运行复制命令。如果已经有该文件，请先备份，再合并需要的规则。要使用英文配置，就把 AGENTS.md 复制到同一个目标位置。如果存在全局 AGENTS.override.md，它会优先生效。新建 Codex 任务并询问当前生效的指令文件，可检查安装结果。详见 [OpenAI 官方 AGENTS.md 文档](https://learn.chatgpt.com/docs/agent-configuration/agents-md)。
+复制命令带有禁止覆盖选项，已有的全局 AGENTS.md 会保持不变。如果已经有该文件，请先备份，再合并需要的规则。要使用英文配置，就把 AGENTS.md 复制到同一个目标位置。如果存在全局 AGENTS.override.md，它会优先生效。新建 Codex 任务并询问当前生效的指令文件，可检查安装结果。详见 [OpenAI 官方 AGENTS.md 文档](https://learn.chatgpt.com/docs/agent-configuration/agents-md)。
 
 ### 只在一个仓库中使用
 

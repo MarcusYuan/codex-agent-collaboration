@@ -61,10 +61,10 @@ Clone the repository, then copy the chosen configuration to Codex's global instr
 git clone https://github.com/MarcusYuan/codex-agent-collaboration.git
 cd codex-agent-collaboration
 mkdir -p ~/.codex
-cp AGENTS.md ~/.codex/AGENTS.md
+cp -n AGENTS.md ~/.codex/AGENTS.md
 ```
 
-Run the copy command only if you do not already have a global AGENTS.md. If you do, back it up and merge the rules you want. For Chinese, copy AGENTS.zh-CN.md to the same destination instead. A global AGENTS.override.md takes priority when present. Start a new Codex task and ask which instruction files are active to verify the setup. See the [official AGENTS.md guide](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
+The no-clobber copy leaves an existing global AGENTS.md unchanged. If you already have one, back it up and merge the rules you want. For Chinese, copy AGENTS.zh-CN.md to the same destination instead. A global AGENTS.override.md takes priority when present. Start a new Codex task and ask which instruction files are active to verify the setup. See the [official AGENTS.md guide](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
 
 ### Use it in one repository
 
