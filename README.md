@@ -2,31 +2,66 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-An open-source configuration for coordinating a main Codex agent and specialist subagents. English is the default language. The repository also includes a complete Chinese README, both language versions of the configuration, the [original Chinese text](docs/original-config.zh-CN.md), and the [screenshot](assets/codex-personalization-original.png) that started the project.
+**Give each kind of Codex work an appropriate model. Aim to spend much less on routine work while preserving the accuracy of the final result.**
+
+This open-source configuration defines how a main agent routes work to specialist subagents and when it requests deeper analysis. English is the default language. A complete Chinese README and configuration are also available.
 
 > Community project; not an official OpenAI configuration. Named models and roles depend on your Codex environment.
 
-## The problem we want to solve
+## Pain point: one task contains different kinds of work
 
-A multi-model Codex setup offers different levels of capability, speed, and cost, but those differences alone do not tell an agent **who should do what, when to ask for deeper analysis, or who is accountable for the result**. Without a working agreement, routine searches can consume an advanced model's time while a consequential architecture decision receives only routine treatment. A main agent may begin implementation before resolving a risky choice, keep patching after repeated failures, or delegate so loosely that workers lack context, collide on files, and return claims nobody verifies.
+A Codex task can involve searching files, making straightforward edits, diagnosing a hard failure, choosing a public API, and verifying the result. Those steps do not need the same reasoning capacity. Using a high-capability model for every step can spend more on routine work. Using only a less costly model may leave a consequential decision without independent deep analysis. Simply adding subagents does not solve the problem if they inherit an unsuitable model or work without clear ownership.
 
-The goal is to put the right level of reasoning on the right decision while keeping one accountable owner for the user's task. This is why the rules specify a default main agent, distinct reader and worker roles, precise escalation points, and final acceptance by the main agent. The aim is reliable results with deliberate use of time and model capacity, not the largest possible agent team.
+```mermaid
+flowchart LR
+    A["One model choice for a mixed task"] --> B["Advanced model for every step"]
+    A --> C["Economical model for every step"]
+    B --> D["Routine work consumes expensive capacity"]
+    C --> E["Critical decisions may lack deep review"]
+```
 
-The rules first lived in Codex personalization settings. Publishing them here makes that working agreement versioned, inspectable, adaptable, and open to improvement by others.
+**The economic goal:** spend less on the full task by reserving stronger models for work where their reasoning changes the outcome, while keeping accuracy through review and verification. This is a design goal; the repository does not yet provide measured savings or accuracy benchmarks.
 
-## How the rules work
+## Solution: route work by difficulty and impact
 
-| Stage | Responsibility | Why it matters |
-| --- | --- | --- |
-| Lead | Sol Medium normally holds the goal, constraints, decisions, and final acceptance; a user-selected main model takes precedence. | The task keeps one owner even when several models contribute. |
-| Gather and execute | Luna reads sources or makes bounded changes; Sol High handles bounded execution that needs more reasoning. Simple tasks stay with the lead. | Routine work uses an appropriate specialist without making every small action a delegation. |
-| Escalate a decision | Astra High gives read-only advice before important architecture, public-interface, or data-model changes; on material tradeoffs; after two evidence-based failed repairs; or when explicitly requested. | High-impact choices get independent analysis before dependent implementation. |
-| Handoff | The lead gives each worker the goal, constraints, file ownership, completion criteria, and evidence to return. Independent context is preferred when supported. | Workers receive enough context without carrying an entire prior conversation, and parallel edits stay coordinated. |
-| Decide and verify | The lead evaluates Astra's advice, chooses a course, inspects changed files and checks, then reports the outcome. | Advice and worker summaries never replace the lead's judgment or acceptance. |
+The main agent normally runs on Sol Medium and owns the user's goal. It handles small tasks directly, sends bounded reading and execution to Luna, uses Sol High for harder bounded execution, and asks Astra High for read-only advice at defined high-impact decision points. The user's explicit model choice always takes precedence.
 
-For example, if a task changes a public API used by several modules, Luna can map the affected code, Astra can compare viable interface designs, and the main agent can choose one before implementation starts. Workers then own separate files or modules and return focused verification evidence. The main agent checks the actual changes before finishing. A small local edit would normally stay with the main agent and skip that ceremony.
+```mermaid
+flowchart TD
+    U["User task"] --> M["Sol Medium: lead and decide"]
+    M --> S{"What work is needed?"}
+    S -->|Small task| M2["Lead handles it directly"]
+    S -->|Search or extract| L1["Luna High: reader"]
+    S -->|Clear bounded change| L2["Luna High: worker"]
+    S -->|Harder bounded execution| H["Sol High: worker"]
+    S -->|High-impact decision| A["Astra High: read-only advisor"]
+    L1 --> V["Lead checks evidence"]
+    L2 --> V
+    H --> V
+    A --> V
+    M2 --> V
+```
 
-If a named role is unavailable, the agent should report the limitation and the decision it affects, then continue independent work. It must not silently present another model's output as Astra's conclusion. These are workflow preferences; they do not override the user's instructions, project constraints, permissions, or actual tool availability.
+Astra is triggered before important cross-module architecture, public-interface, or data-model changes; when viable options have material downstream tradeoffs; after two evidence-based repairs fail; or when the user explicitly requests deep review. An applicable prior Astra conclusion is reused rather than requested again without new evidence. Dependent implementation waits for that decision; independent work can proceed.
+
+## How the rules protect accuracy
+
+Saving model capacity only helps if the final answer remains dependable. Each handoff states the goal, constraints, owned files or modules, completion criteria, and evidence to return. Workers can use independent context without inheriting the entire conversation. Astra advises; the main agent makes the decision and checks the actual files and verification evidence. Unavailable roles are reported rather than silently replaced.
+
+```mermaid
+flowchart LR
+    A["Scope the task"] --> B["Assign an appropriate model"]
+    B --> C["Get evidence or a change"]
+    C --> D["Main agent reviews the result"]
+    D --> E{"Meets the goal?"}
+    E -->|Yes| F["Deliver verified result"]
+    E -->|No| G["Repair or escalate with evidence"]
+    G --> B
+```
+
+For example, on a cross-module API change, Luna maps affected code, Astra compares interface choices, the lead selects a design, workers implement separate parts, and the lead verifies the changes. A small local edit usually stays with the lead. The rules first lived in Codex personalization settings; this repository makes them versioned, inspectable, and open to improvement.
+
+These are workflow preferences; they do not override user instructions, project constraints, permissions, or actual tool availability.
 
 ## Files
 
