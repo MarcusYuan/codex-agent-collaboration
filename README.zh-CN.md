@@ -1,102 +1,92 @@
-# Codex 智能体协作规则
+# Codex 智能体协作配置
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-**让 Codex 的每一类工作交给合适的模型。目标是在降低模型费用的同时，保持最终结果的准确性。**
+**主智能体负责路由与上下文，专业子智能体承担核心技术工作。**
 
-这个仓库提供可直接使用的主智能体与子智能体协作规则。你可以在 Codex 中使用[英文配置](AGENTS.md)或[中文配置](AGENTS.zh-CN.md)。它是一套指令，不是程序，也不是 OpenAI 官方产品。
+本项目面向 Codex 桌面版的原生子智能体协作，提供双语规则、六个自定义角色和带备份的安装脚本。这是个人工作流配置，不是 OpenAI 官方产品。费用节省和质量提升尚未经过实测。
 
-![同一软件任务的两种做法：左边由一个昂贵模型处理所有步骤，右边由主智能体将日常工作分给专门角色，将困难设计决策交给专家](assets/model-routing-before-after.png)
+![主智能体将边界明确的工作分给不同模型的专业角色](assets/model-routing-before-after.png)
 
-*左边：高能力模型连日常查找和修改也全部承担。右边：主智能体按任务分配模型，只在困难决策上使用深度分析；最终结果仍须检查。*
+## 职责分工
 
-## 痛点：同一个任务，工作难度却不同
+主智能体通常使用 **GPT-6 Sol Medium**，维护用户目标，分派任务，传递上下文，协调依赖和阻塞，组织最终交付。用户明确选择的主模型优先。
 
-假设你让 Codex 修改一个被多个模块使用的接口。它需要定位调用方、阅读测试、比较接口方案、修改文件，最后验证结果。
+子智能体负责有明确边界的交付物：调查、技术决策、实现和专业验证。sol_worker 可以从目标开始细化需求、业务规则、验收标准、常规技术方案、依赖、交互/视觉方向、适用的设计产物和测试策略，再进入实现；向用户澄清仍由主智能体统一负责。重要架构、公共接口、数据模型和重大取舍交给 astra_advisor。主智能体核对结果是否符合目标与约束，避免重复子智能体的推理和全部检查。
 
-全程使用高能力模型，简单的查找和修改也会消耗较贵的模型资源。全程使用费用较低的模型，关键接口设计又可能缺少足够的分析。单纯增加子智能体也无法解决问题：它们可能继承不合适的模型，收到边界模糊的任务，交付后也没人核查。
-
-**真正的痛点，是同一任务中的模型分配。** 我们希望把更强的推理能力用在会影响结果的决策上，让清晰的工作使用更经济的模型，同时让一位主智能体对准确性负责。
-
-## 方案：按任务类型分配模型
-
-通常由 Sol Medium 作为主智能体，始终负责用户目标。它按工作的难度和影响分配角色：
-
-| 任务中的工作 | 负责角色 | 例子 |
+| 角色 | 模型 / 推理强度 | 职责 |
 | --- | --- | --- |
-| 理解需求、日常判断、整合和验收 | 主智能体 · Sol Medium | 制定接口修改方案并验收补丁 |
-| 搜索、定位代码、提取事实 | Luna High 查阅角色 | 找出该接口的所有调用方 |
-| 执行边界清楚的修改 | Luna High 执行角色 | 更新一组已经确定的调用点 |
-| 实施或定位较难的局部问题 | Sol High 执行角色 | 修复复杂的集成故障 |
-| 分析影响大的决策 | Astra High 只读顾问 | 实施前比较接口设计方案 |
+| 主智能体 | GPT-6 Sol / Medium | 路由、上下文、依赖、协调、最终交付 |
+| luna_reader | GPT-6 Luna / High | 只读搜索与证据采集 |
+| luna_worker | GPT-6 Luna / High | 明确且有边界的实现及相关检查 |
+| luna_browser | GPT-6 Luna / High | computer-use、CDP、浏览器自动化、实时 UI 证据 |
+| sol_worker | GPT-6 Sol / High | 从目标细化方案、复杂实现与诊断 |
+| sol_reviewer | GPT-6 Sol / High | 专业审查与验证 |
+| astra_advisor | GPT-6 Astra / High | 只读技术决策、重大取舍、困难根因 |
 
-重要的架构、公共接口或数据模型变更，影响较大的方案取舍，两轮有证据的修复失败，或者用户明确要求深度复核时，才请 Astra 分析。简单的局部任务由主智能体直接完成。用户自行选择的主模型优先于这里的默认设置。
+**computer-use 和 CDP 固定使用 Luna。** Sol 与 Astra 可以分析已保存的截图和日志；实际浏览器或桌面操作始终交给 luna_browser，诊断升级也不转移操作权。通过 shell 包装或其他浏览器工具执行同样受此规则约束。
 
-### 回到刚才的接口修改
+这些是行为规则，不是保证每次都按矩阵执行的调度程序，也不是工具权限隔离机制。角色仍受实际运行时权限与工具可用性约束。
 
-1. 主智能体明确目标，请 Luna 找出受影响的模块。
-2. 在依赖设计决策的工作开始前，请 Astra 比较接口方案。
-3. 主智能体选定方案，把不同文件或模块交给各执行者。
-4. 执行者返回修改和验证证据；主智能体检查实际补丁及相关测试，再报告完成。
+## 从请求到交付
 
-这样，高能力模型集中处理关键决策，不必承担任务中的每一次查找和编辑。
+以“设置页面无法保存”为例：主智能体把实时 UI 调查交给 luna_browser，把可独立进行的代码调查交给查阅者或执行者。sol_worker 可以细化验收条件并调查复杂原因；执行者修复有证据支持的问题。需要重大决策或经过有证据的修复轮次仍未解决根因时交给 Astra。Luna 再次验证浏览器流程；审查者检查补丁与证据，并运行必要的非浏览器检查。
 
-## 如何保持准确性
+主智能体在各负责人之间传递决定与证据，报告结果。这是示例，不是每项任务都必须经过的流水线：小任务不必调用所有角色，相关后续工作应复用已有子智能体。
 
-费用更低的执行方式，只有在最终结果可靠时才有价值。每次委派都要写明目标、必要背景、约束、负责文件、完成标准和交付证据。并行执行者各自负责不同文件。顾问提供分析，主智能体负责决策和核验。角色不可用时如实说明，不悄悄换成其他模型。
+完整规则见[任务矩阵与交接约定](docs/workflow.zh-CN.md)。
 
-![多个专业角色的工作和专家建议汇集到主智能体，由主智能体对照证据和设计图检查最终软件成果](assets/verified-delivery.png)
+## 安装到桌面版
 
-*主智能体检查产物及其证据。子智能体的总结不能代替最终验收。*
+使用支持自定义子智能体的桌面版本。安装脚本要求 **Python 3.11 或更新版本**，只使用标准库，直接更新本地配置文件，不需要 Codex CLI。如果系统 python3 较旧，请改用兼容 Python 解释器的路径。
 
-## 开始使用
+下载或克隆仓库，在终端进入仓库目录，先预览：
 
-**选择一种语言版本即可。** 这些文件只提供指令，不会自动创建自定义角色、授予工具权限，也不会改变你明确选定的模型。只有当你的 Codex 环境支持或定义了相应角色时，规则中的角色名才可直接使用；否则请按实际可用的模型调整。
+~~~bash
+python3 scripts/install.py --language zh-CN --dry-run
+~~~
 
-### 全局使用
+再安装：
 
-克隆仓库，再把所选配置复制为 Codex 全局指令：
+~~~bash
+python3 scripts/install.py --language zh-CN
+~~~
 
-```bash
-git clone https://github.com/MarcusYuan/codex-agent-collaboration.git
-cd codex-agent-collaboration
-mkdir -p ~/.codex
-cp -n AGENTS.zh-CN.md ~/.codex/AGENTS.md
-```
+目标默认取已有 CODEX_HOME 环境设置，否则使用 ~/.codex。其他桌面配置目录可用 --codex-home /绝对路径 指定。英文规则使用 --language en，只需安装一种语言。
 
-复制命令带有禁止覆盖选项，已有的全局 AGENTS.md 会保持不变。如果已经有该文件，请先备份，再合并需要的规则。要使用英文配置，就把 AGENTS.md 复制到同一个目标位置。如果存在全局 AGENTS.override.md，它会优先生效。新建 Codex 任务并询问当前生效的指令文件，可检查安装结果。详见 [OpenAI 官方 AGENTS.md 文档](https://learn.chatgpt.com/docs/agent-configuration/agents-md)。
+安装器管理 AGENTS.md 中带标记的协作区块、agents/ 下六个文件，以及 [config/codex.toml](config/codex.toml) 中的主模型和子模型默认设置。无关配置会保留；有变化的已有文件备份到 backups/codex-agent-collaboration/。相同内容重复安装不会修改文件，预览不会写入文件。
 
-### 只在一个仓库中使用
+已有非托管指令和冲突的角色文件默认受保护。如果已检查并确定要替换，可以显式预览：
 
-把所选配置复制到目标仓库根目录，命名为 AGENTS.md。覆盖已有文件前先检查内容，并按项目需要调整。适用的全局规则可能也会加载。
+~~~bash
+python3 scripts/install.py --language zh-CN --replace-instructions --replace-roles --dry-run
+~~~
 
-### 使用 Codex 个性化设置
+去掉 --dry-run 后应用。**--replace-instructions 会替换整个非托管指令文件**，使用前应合并或另行保留无关约定。非空 AGENTS.override.md 优先生效，需先处理后再安装。审批设置、凭据、MCP 连接和插件不会被修改。
 
-也可以把所选配置粘贴到 Codex 个性化指令输入框。GitHub 更新不会自动同步到该输入框或已经安装的本地文件。
+安装后在**桌面应用中新建任务**。已有任务可能仍持有旧规则或角色定义。确认新任务能发现六个角色，且 luna_browser 能访问目标工具。配置有效本身不能证明运行时工具已可用。
 
-## 怎样验证经济效益
+如果曾把旧规则粘贴到桌面个性化设置，也需在应用里同步更新那份内容。文件安装不会同步个性化设置。
 
-这套配置旨在降低费用并保持准确性；**本仓库目前没有实测的节省比例或准确率结果**。要验证效果，可以用同一组有代表性的任务，比较启用和未启用规则时的模型用量或账单费用、结果是否通过验收、返工次数以及完成时间。简单任务和复杂任务都应纳入比较：费用降低的前提是结果依然正确。
+## 手动安装或只用于一个项目
 
-## 仓库文件
+把[英文](AGENTS.md)或[中文](AGENTS.zh-CN.md)规则合并进对应 AGENTS.md。将[角色文件](agents/)复制到 ~/.codex/agents/ 供个人使用，或项目 .codex/agents/。把 [config/codex.toml](config/codex.toml) 合并进对应配置，避免追加重复的 agents 表，并保留原有项目约束。
 
-| 文件 | 用途 |
-| --- | --- |
-| [AGENTS.md](AGENTS.md) | 默认英文配置 |
-| [AGENTS.zh-CN.md](AGENTS.zh-CN.md) | 中文配置 |
-| [README.md](README.md) | 完整英文说明 |
-| [原始中文规则](docs/original-config.zh-CN.md) | 保留最初文字，便于核对 |
-| [原始截图](assets/codex-personalization-original.png) | 启发本项目的 Codex 个性化设置画面 |
-| [配图提示词](docs/image-prompts.md) | 两张 README 生成配图所用的提示词 |
+只复制指令文件不会安装角色，也不会提供浏览器工具。
 
-最初的规则写在 Codex 个性化设置里。这个仓库让它更容易审阅、管理版本、分享和共同改进。
+## 依据与评估
 
-![最初填在 Codex 个性化设置中的中文协作规则截图](assets/codex-personalization-original.png)
+OpenAI 文档支持自定义子模型、后续消息调度，并提供了使用 Chrome DevTools 子智能体调试前端的例子。本项目的职责分工和固定 Luna 浏览器策略属于工作流选择。参见 [Subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents)、[配置参考](https://learn.chatgpt.com/docs/config-file/config-reference)、[AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md) 和 [Computer Use](https://learn.chatgpt.com/docs/computer-use)。
 
-## 参与贡献
+用有代表性的任务记录验收结果、返工、总耗时、交接次数和可获得的模型用量，再判断费用与质量效果。多个智能体也会增加协调与上下文开销。
 
-欢迎提交 Issue 和 Pull Request。提出新规则时，请说明它要解决的真实任务；改变规则行为时，请同步更新两种语言版本。简单任务应保持简单。原始文字和截图作为历史资料保留。
+## 仓库与贡献
 
-## 许可证
+- [AGENTS.md](AGENTS.md)、[AGENTS.zh-CN.md](AGENTS.zh-CN.md)：可安装的路由规则。
+- [agents/](agents/)、[config/codex.toml](config/codex.toml)、[安装器](scripts/install.py)：桌面配置。
+- [工作流说明](docs/workflow.zh-CN.md)：任务矩阵与交接格式。
+- [原始规则](docs/original-config.zh-CN.md)、[截图](assets/codex-personalization-original.png)、[配图提示词](docs/image-prompts.md)：历史资料，不作为当前安装配置。
 
-MIT，见 [LICENSE](LICENSE)。
+改变规则时说明真实任务并同步更新双语版本。用 Python 3.11+ 运行安装器检查：python3 -m unittest discover -s tests。
+
+MIT 许可证，见 [LICENSE](LICENSE)。

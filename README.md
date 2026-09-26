@@ -1,102 +1,92 @@
-# Codex Agent Collaboration Rules
+# Codex Agent Collaboration
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-**Use an appropriate model for each part of a Codex task. The goal is lower model spending without losing the accuracy of the final result.**
+**Let the main agent route work and carry context. Let specialist subagents do the technical work.**
 
-This repository provides ready-to-use instructions for a main Codex agent and specialist subagents. You can place the [English configuration](AGENTS.md) or [Chinese configuration](AGENTS.zh-CN.md) in Codex. It is an instruction set, not a program or an official OpenAI product.
+This project configures native subagents in the Codex desktop experience. It includes bilingual instructions, six custom agent definitions, and an installer that backs up changed files. It is a personal workflow configuration, not an official OpenAI product. Cost and quality improvements have not been measured.
 
-![A software task handled by one costly model for every step, compared with a lead routing routine work to smaller specialists and a difficult design decision to an expert](assets/model-routing-before-after.png)
+![A lead routes bounded tasks to specialist models](assets/model-routing-before-after.png)
 
-*Left: one advanced model spends capacity on every routine task. Right: the lead sends each kind of work to a suitable model and reserves deep expertise for the difficult decision. Both paths still need a checked result.*
+## Responsibilities
 
-## The problem
+The main agent normally uses **GPT-6 Sol Medium**. It maintains the user's goal, routes work, supplies context, manages dependencies and blockers, and assembles the final delivery. The user's explicit main-model choice takes precedence.
 
-Imagine asking Codex to change an API used by several modules. The task includes many different steps: locate callers, read tests, compare interface designs, edit files, and check the result.
+Subagents own bounded deliverables: investigation, technical decisions, implementation, and professional verification. sol_worker can start from a goal and refine requirements, business rules, acceptance criteria, an ordinary technical approach, dependencies, interaction/visual direction, applicable design artifacts, and test strategy before implementation; the main agent retains user clarification, routing, and coordination. Important architecture, public interfaces, data models, and consequential tradeoffs go to astra_advisor. The main agent checks results against the goal and constraints, without routinely repeating their reasoning or every check.
 
-Using a powerful model throughout can make routine searching and editing unnecessarily costly. Using a cheaper model throughout can leave the interface decision without enough analysis. Adding subagents alone does not help if they inherit an unsuitable model, receive vague tasks, or return work nobody checks.
-
-**The real problem is model allocation across a mixed task.** We want to spend strong reasoning where it can change the outcome, use lighter capacity for clear work, and keep one agent responsible for accuracy.
-
-## How this configuration works
-
-The main agent normally uses Sol Medium and remains responsible for the user's goal. It assigns work according to its difficulty and impact:
-
-| Work in the task | Assigned role | Example |
+| Role | Model / effort | Responsibility |
 | --- | --- | --- |
-| Understand the request, make routine decisions, integrate and verify results | Main agent · Sol Medium | Plan the API change and accept the final patch |
-| Search, locate code, extract facts | Luna High reader | Find every caller of the API |
-| Make a clear, bounded change | Luna High worker | Update a set of known call sites |
-| Implement or diagnose a harder, bounded piece | Sol High worker | Repair a complex integration failure |
-| Analyze a high-impact decision | Astra High read-only advisor | Compare interface designs before implementation |
+| Main agent | GPT-6 Sol / Medium | Routing, context, dependencies, coordination, final delivery |
+| luna_reader | GPT-6 Luna / High | Read-only search and evidence gathering |
+| luna_worker | GPT-6 Luna / High | Clear, bounded implementation and relevant checks |
+| luna_browser | GPT-6 Luna / High | Computer-use, CDP, browser automation, live UI evidence |
+| sol_worker | GPT-6 Sol / High | Goal-to-plan refinement, complex implementation, and diagnosis |
+| sol_reviewer | GPT-6 Sol / High | Professional review and verification |
+| astra_advisor | GPT-6 Astra / High | Read-only technical decisions, consequential tradeoffs, difficult root causes |
 
-Astra is requested for important architecture, public-interface, or data-model changes; material tradeoffs; two evidence-based failed repairs; or an explicit deep-review request. A small local task stays with the main agent. The user's chosen main model takes precedence over the default.
+**Computer-use and CDP stay on Luna.** Sol and Astra may analyze saved screenshots and logs; live browser or desktop operations remain with luna_browser, including during escalated diagnosis. Shell wrappers and other browser tools follow the same rule.
 
-### In the API example
+These are behavior rules, not a guaranteed routing engine or a tool-access security boundary. Roles remain subject to runtime permissions and tool availability.
 
-1. The main agent defines the goal and asks Luna to locate affected modules.
-2. Astra compares interface options before work that depends on that decision begins.
-3. The main agent chooses a design and gives workers separate files or modules.
-4. Workers return changes and focused evidence. The main agent checks the actual patch and relevant tests before reporting completion.
+## From request to delivery
 
-This keeps the expert model focused on the expensive decision rather than making it perform every search and edit.
+For a settings page that fails to save, the main agent assigns live UI investigation to luna_browser and independent code investigation to a reader or worker. sol_worker can refine the acceptance criteria and investigate a complex cause; a worker fixes the supported cause. Astra handles a consequential decision or a root cause that remains unresolved after evidence-based repair rounds. Luna repeats the browser flow; a reviewer can inspect the patch and evidence and run relevant non-browser checks.
 
-## How accuracy is protected
+The main agent passes decisions and evidence between owners and reports the result. This is an example, not a mandatory sequence: short tasks do not need every role, and related follow-up work should reuse an existing subagent.
 
-Lower-cost execution is useful only when the final work is dependable. Each delegation includes the goal, necessary context, constraints, owned files, completion criteria, and evidence to return. Parallel workers receive separate ownership. The advisor supplies analysis; the main agent decides and verifies. If a role is unavailable, the limitation is reported instead of silently replacing the model.
+See the [task matrix and handoff contract](docs/workflow.md).
 
-![Specialist work and expert advice arriving at a lead engineer, who inspects the finished software against evidence and a design blueprint before accepting it](assets/verified-delivery.png)
+## Install for the desktop app
 
-*The main agent checks the deliverable and its evidence. A subagent's summary is not final acceptance.*
+Use a desktop release supporting custom subagents. The installer requires **Python 3.11 or newer**, uses only the standard library, and edits local configuration files. No Codex CLI is required. If your python3 is older, use the path to a compatible Python interpreter.
 
-## Get started
+Download or clone the repository, open its directory in a terminal, and preview:
 
-Choose **one** language version. These files provide instructions; they do not create custom roles, grant tools, or change a model you explicitly selected. The named roles work only if your Codex environment supports or defines them. Adapt the role section to the models available to you.
+~~~bash
+python3 scripts/install.py --language en --dry-run
+~~~
 
-### Use it globally
+Then install:
 
-Clone the repository, then copy the chosen configuration to Codex's global instruction file:
+~~~bash
+python3 scripts/install.py --language en
+~~~
 
-```bash
-git clone https://github.com/MarcusYuan/codex-agent-collaboration.git
-cd codex-agent-collaboration
-mkdir -p ~/.codex
-cp -n AGENTS.md ~/.codex/AGENTS.md
-```
+The target defaults to the existing CODEX_HOME environment setting or ~/.codex. Use --codex-home /absolute/path for a different desktop configuration home. Choose --language zh-CN for Chinese instructions; install only one language.
 
-The no-clobber copy leaves an existing global AGENTS.md unchanged. If you already have one, back it up and merge the rules you want. For Chinese, copy AGENTS.zh-CN.md to the same destination instead. A global AGENTS.override.md takes priority when present. Start a new Codex task and ask which instruction files are active to verify the setup. See the [official AGENTS.md guide](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
+The installer manages a marked collaboration block in AGENTS.md, six files under agents/, and the main-model and subagent defaults listed in [config/codex.toml](config/codex.toml). It preserves unrelated configuration and backs up changed existing files under backups/codex-agent-collaboration/. An identical second installation makes no changes; dry-run writes nothing.
 
-### Use it in one repository
+Existing non-managed instructions and conflicting role files are protected. If you have reviewed them and intend to replace them, preview explicitly:
 
-Copy the chosen configuration into that repository's root as AGENTS.md. Review any existing file before replacing it, and adjust the rules to the project's needs. Applicable global instructions may also load.
+~~~bash
+python3 scripts/install.py --language en --replace-instructions --replace-roles --dry-run
+~~~
 
-### Use Codex personalization
+Remove --dry-run to apply. **--replace-instructions replaces the entire unmanaged instruction file**; merge or preserve unrelated instructions first. A nonempty AGENTS.override.md takes precedence and must be resolved before installation. Approval settings, credentials, MCP connections, and plugins are not changed.
 
-You can paste the chosen configuration into Codex's personalization instruction field. GitHub updates do not automatically update the field or an installed local file.
+Open a **new task in the desktop app** after installation. Existing tasks may retain earlier instructions or role definitions. Confirm the task can discover the six roles and luna_browser can access the intended tools. Valid configuration does not by itself verify runtime tool access.
 
-## How to evaluate the economic benefit
+If you pasted old rules into desktop personalization, update that copy through the app too. File installation does not synchronize personalization.
 
-The configuration is designed to reduce spending while preserving accuracy; **no savings percentage or accuracy result has been measured for this repository yet**. To evaluate it, run the same representative tasks with and without the rules. Compare total model usage or billed cost, accepted outcomes, rework, and time to completion. Include complex tasks as well as simple ones: lower spending is only useful if the result remains correct.
+## Manual or project-specific use
 
-## Repository contents
+Merge [English](AGENTS.md) or [Chinese](AGENTS.zh-CN.md) instructions into the relevant AGENTS.md. Copy [role files](agents/) to ~/.codex/agents/ for personal use or .codex/agents/ for one project. Merge [config/codex.toml](config/codex.toml) into the relevant configuration; do not append a duplicate agents table. Preserve existing project constraints.
 
-| File | Purpose |
-| --- | --- |
-| [AGENTS.md](AGENTS.md) | Default English configuration |
-| [AGENTS.zh-CN.md](AGENTS.zh-CN.md) | Chinese configuration |
-| [README.zh-CN.md](README.zh-CN.md) | Full Chinese README |
-| [Original Chinese rules](docs/original-config.zh-CN.md) | Source wording preserved for reference |
-| [Original screenshot](assets/codex-personalization-original.png) | The Codex personalization screen that started this project |
-| [Illustration prompts](docs/image-prompts.md) | Prompts used for the two generated README illustrations |
+Copying instructions alone does not install roles or provide browser tools.
 
-The original rules were written in a Codex personalization field. This repository makes them easier to review, version, share, and improve.
+## Evidence and evaluation
 
-![Original screenshot of the Chinese collaboration rules in Codex personalization settings](assets/codex-personalization-original.png)
+OpenAI documents custom subagent models, follow-up orchestration, and a frontend debugging example using a Chrome DevTools subagent. Our responsibility split and fixed Luna browser policy are workflow choices. See [Subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents), [Configuration Reference](https://learn.chatgpt.com/docs/config-file/config-reference), [AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md), and [Computer Use](https://learn.chatgpt.com/docs/computer-use).
 
-## Contributing
+Measure accepted outcomes, rework, elapsed time, handoffs, and available model usage on representative tasks before drawing cost or quality conclusions. Multiple agents add coordination and context costs.
 
-Issues and pull requests are welcome. Explain the real task behind a proposed rule and update both language versions when changing behavior. Keep simple tasks simple. The original text and screenshot are preserved as historical material.
+## Repository and contribution
 
-## License
+- [AGENTS.md](AGENTS.md) and [AGENTS.zh-CN.md](AGENTS.zh-CN.md): installable routing rules.
+- [agents/](agents/), [config/codex.toml](config/codex.toml), [installer](scripts/install.py): desktop configuration.
+- [Workflow guide](docs/workflow.md): task matrix and handoff formats.
+- [Original rules](docs/original-config.zh-CN.md), [screenshot](assets/codex-personalization-original.png), and [illustration prompts](docs/image-prompts.md): historical material, not the active configuration.
 
-MIT. See [LICENSE](LICENSE).
+Explain the real task behind a rule change and update both languages. Run installer checks using Python 3.11+: python3 -m unittest discover -s tests.
+
+MIT license; see [LICENSE](LICENSE).

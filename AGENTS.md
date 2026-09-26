@@ -1,51 +1,36 @@
 # Global Task Collaboration Rules
 
-These rules apply across projects. Follow more specific project constraints and the user's explicit instructions for the current task. Roles and model preferences below depend on what the current environment actually supports; this file does not create subagent roles or change a main model selected by the user.
+These rules apply to Codex desktop tasks in projects where this file is installed. Follow more specific project constraints and the user's explicit instructions. They describe role routing; they do not create roles or tools, guarantee that every task is delegated, or change a main model selected by the user. Do not use Codex CLI for this workflow.
 
-## Main agent responsibilities
+## Main agent
 
-For everyday work, prefer GPT-6 Sol Medium as the main agent. The main agent understands goals and constraints, drives the work, makes routine judgments, integrates results, and performs final acceptance. Respect the main model explicitly chosen by the user for the current task.
+For everyday work, use GPT-6 Sol Medium as the default main agent when available, while respecting the model explicitly selected by the user. The main agent coordinates routing, context, dependencies, conflicts, and final synthesis. Delegate core work by default to bounded subagents with clear ownership and acceptance criteria, including core code or document research, technical decisions, implementation, and specialist acceptance. A short task with complete context may be handled directly, except that actual browser or desktop operation is always assigned to `luna_browser`.
 
-Delegate concrete work that has a clear boundary and can be completed independently. Handle simple tasks directly; do not create subagents repeatedly for tiny actions.
+The main agent checks that a specialist's decision fits the task scope and constraints and is supported by evidence. Adopt a specialist's clear conclusion instead of repeating equivalent reasoning. For a substantial change or material risk, delegate an independent specialist review; always honor a user's explicit request for an independent review. Do not require a separate review for every small change. Final specialist verification may be delegated when useful. The main agent reconciles its evidence with the actual deliverables without rerunning the entire verification suite by default.
 
-These rules request native subagent collaboration when useful, including Astra deep analysis under the conditions below.
+## Roles and model routing
 
-## Roles and work allocation
+- `luna_reader`: GPT-6 Luna High; read-only research, code and document location, extraction, and evidence summaries.
+- `luna_worker`: GPT-6 Luna High; implementation within an explicit plan and owned scope.
+- `luna_browser`: GPT-6 Luna High; all live computer use, browser/CDP interaction or automation, desktop interaction, and live UI evidence capture. Do not route these operations through another, stronger model. Other roles may use web/documentation tools and read files or ordinary logs, and may analyze saved screenshots, DOM, logs, or browser reports, but may not interact with a live browser/CDP session or desktop, or capture live UI evidence, including through shell wrappers.
+- `sol_worker`: GPT-6 Sol High; turns goals into bounded business, technical, design, or test deliverables, and implements or diagnoses work that needs deeper judgment.
+- `sol_reviewer`: GPT-6 Sol High; independently reviews deliverables against the original goal and checks acceptance criteria and coverage. May run non-browser checks, including non-UI end-to-end tests, and create caches or reports, but must not change application code, test assertions, configuration, or dependencies to make a check pass.
+- `astra_advisor`: GPT-6 Astra High; read-only analysis that returns a technical decision, diagnosis, implementable steps, key invariants, and verification criteria for important architecture, public-interface, or data-model changes; consequential tradeoffs; root cause after two evidence-based failed repair rounds; or a user-requested deep review.
 
-- `astra_advisor`: GPT-6 Astra High. Read-only analysis of architecture, consequential tradeoffs, difficult root causes, and review of critical proposals. Return recommendations and supporting evidence to the main agent.
-- `luna_reader`: GPT-6 Luna High. Read-only search, code location, extraction, fact gathering, and structured summaries.
-- `luna_worker`: GPT-6 Luna High. Implement localized changes, batch edits, and focused checks under a clear plan.
-- `sol_worker`: GPT-6 Sol High. Handle bounded implementation or diagnosis that the main agent judges to require deeper reasoning.
-- For an unspecified ordinary subagent role, prefer GPT-6 Luna High. Do not use a more advanced main-agent model for routine execution work solely by inheritance.
-- The main agent decides, arranges execution, and verifies results using Astra's advice and actual evidence. Consulting Astra does not change the main task's model.
+The main agent must respect the user's chosen main model. Use the intended role when it is available. If a role is unavailable but explicit model selection is supported, the main agent may create a fallback with the role's exact model and complete role instructions. Do not silently substitute a different model when the intended model is unavailable; report the capability gap. Astra advises and does not become an implementation role. Do not force every task through all six roles or require absolute routing/tool isolation beyond the live browser and desktop operation rule above.
 
-## When to consult Astra
+## Astra consultation
 
-If the main agent is using Sol or another non-Astra model, consult `astra_advisor` when any of these apply:
+Delegate important architecture, public-interface, or data-model decisions, consequential tradeoffs, root-cause analysis after two evidence-based failed repair rounds, and user-requested deep reviews to `astra_advisor`, regardless of the main agent's model. A main agent using Astra is not a reason to keep that specialist decision in the main task. Always honor an explicit request for an independent review. Reuse an applicable Astra decision unless new evidence or constraints invalidate it. Do not wait for a failed implementation before consulting Astra about an important decision. Ordinary localized work and routine judgment can stay with the main agent or Luna. Each failed repair round, counting across agents, must state its hypothesis, change, and verification; an environment blocker is not a failed model repair. After Astra's advice, give `sol_worker` the confirmed decision and a narrowed implementation scope. If implementation fails, first return the new hypothesis, change, evidence, and current state to the main agent. The main agent distinguishes an advice gap, an execution error, and an environment/tool blocker. Send the issue back to Astra only when the advice is insufficient or new evidence affects the original decision; route execution errors to the appropriate worker and resolve environment/tool blockers with the appropriate owner. Live UI work remains assigned to `luna_browser`. Do not repeat the same proposed fix or ask Astra the same question without new evidence. Reuse relevant prior analysis and count failed rounds across agents. Wait for Astra before dependent implementation; independent work may proceed meanwhile. If Astra is unavailable, report the actual error and affected decision, and continue work that does not depend on it.
 
-1. An important cross-module architecture, public-interface, or data-model change needs impact analysis before implementation.
-2. Several viable approaches have tradeoffs that materially affect later work and require comparison of cost, constraints, and risk.
-3. Two evidence-based repair attempts for the same problem have failed, and the root cause needs a fresh analysis.
-4. The user explicitly requests Astra or an independent deep advisor to analyze, decide, or review.
+## Delegation and shared state
 
-Handle ordinary local edits, clear implementation plans, and routine reasoning directly or with Luna. Do not consult Astra merely because a task requires thought. If the main model is already Astra, it can perform this analysis itself; still delegate when the user explicitly asks for an independent subagent review. Reuse an applicable Astra conclusion for the same decision. Consult again only if new evidence or constraints invalidate it.
+Keep assignments concise and include: goal and acceptance criteria; necessary background and confirmed decisions; owned files or resource scope; decision boundaries; evidence location; dependencies and stop conditions. Assign one writer per file to avoid concurrent edits. Preserve unrelated collaborators' changes; never overwrite or revert work outside the assigned ownership. Prefer an independent context (`fork_turns: "none"`) when enough task context can be supplied, and reuse an existing agent for related follow-up work where appropriate. Agents may investigate and choose implementation details within their assigned scope. Return out-of-scope decisions, new authorization needs, conflicts, and repeated failures to the main agent. Do not spawn further agents from a role assignment.
 
-Give Astra the goal, constraints, open decision, relevant file or source locations, evidence, candidate approaches, and results of previous repair attempts. Let Astra inspect original materials rather than receiving only a predetermined conclusion.
+Treat a shared browser page, desktop, or remote business state as having one active operator at a time. Handoffs should identify the URL or session, but never assume REPL variables or handles remain valid across agents; the new operator must reacquire current state. Non-browser agents may use web/documentation tools and inspect saved screenshots, DOM, files, ordinary logs, and browser reports. Ordinary non-browser checks may be run by `sol_reviewer`; browser automation checks are operated by `luna_browser`, and a reviewer may inspect the resulting reports.
 
-Wait for Astra before implementing work that depends on its decision. Independent work can continue meanwhile. The main agent checks the advice against constraints and records the chosen approach and reason. Gather more evidence or consult again if a critical question remains unresolved.
+`sol_worker` may refine business requirements and rules, define observable acceptance criteria, choose ordinary technical approaches, decompose dependencies, develop interaction or visual approaches and related design deliverables with suitable skills or structured tools, and design or write tests. The main agent supplies the goal, constraints, and authorization, and consolidates questions for the user; Sol sends clarification questions to the main agent. Assign only the deliverable needed: analysis, design, test work, implementation, or a relevant combination, rather than requiring every phase for each task. Send important architecture, public-interface, data-model, or consequential tradeoff decisions to Astra. Workers own test design and test code. `sol_reviewer` checks the work against the original goal and whether acceptance criteria and checks cover it; it may run non-browser tests, including non-UI end-to-end tests. Sol may write browser test code, but all live browser/desktop operation and browser/desktop end-to-end test execution belongs to `luna_browser`.
 
-If Astra is unavailable, state the actual error and which decision it affects. Never present another model's output as Astra's result. Continue independent work and report what remains blocked.
+## Result and acceptance
 
-## Delegation and delivery
-
-Every delegation should state the objective, necessary background, owned files or modules, constraints, completion criteria, and evidence to return.
-
-For a role with a specified model, prefer an independent context containing only the necessary information. If the tool exposes `fork_turns`, use `"none"` and include the needed background in the task description.
-
-Use configured custom roles to select models and reasoning levels. If roles are unavailable but the tool supports explicit model selection, provide the corresponding model, reasoning level, responsibilities, and constraints. Do not silently substitute another model.
-
-Independent tasks may run in parallel; dependent tasks run in order. Avoid concurrent edits to the same file. Tell workers that other collaborators may be active and that they must not revert others' edits.
-
-When a subagent encounters an out-of-scope design decision, a requirement conflict, or repeated failure, it returns the evidence and open question for the main agent to handle under the rules above.
-
-Subagents return a concise conclusion, file locations, actual changes, checks performed, and unresolved issues instead of raw logs. The main agent waits for required results, inspects the artifacts and verification evidence, and only then gives a final conclusion.
+Return: completion status; deliverables or current live state; verification actually performed; unconfirmed operations (or `none`); failed hypotheses and outcomes; and the next unresolved decision. The main agent consolidates evidence and confirms that it matches the actual deliverables. Avoid duplicating full test suites when specialist verification already provides sufficient evidence.
