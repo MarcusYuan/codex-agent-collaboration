@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import tomllib
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from unittest.mock import patch
 
 
@@ -40,6 +44,26 @@ class InstallTests(unittest.TestCase):
 
     def run_install(self, **options):
         return installer.install(self.repo, self.home, **options)
+
+    def run_main(self, *args):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with patch.object(installer, "REPO", self.repo), redirect_stdout(stdout), redirect_stderr(stderr):
+            code = installer.main(["--codex-home", str(self.home), *args])
+        return code, stdout.getvalue(), stderr.getvalue()
+
+    def tree_state(self, root: Path):
+        """Capture paths, bytes, permissions, and mtimes to prove check is read-only."""
+        if not root.exists():
+            return None
+        entries = {}
+        for path in [root, *sorted(root.rglob("*"))]:
+            info = path.lstat()
+            entries[path.relative_to(root.parent)] = (
+                "dir" if path.is_dir() else "symlink" if path.is_symlink() else "file",
+                path.read_bytes() if path.is_file() and not path.is_symlink() else None,
+                info.st_mode, info.st_mtime_ns,
+            )
+        return entries
 
     def test_new_install_and_language(self):
         changes = self.run_install(language="zh-CN")
@@ -97,6 +121,131 @@ class InstallTests(unittest.TestCase):
     def test_dry_run_is_zero_write(self):
         changes = self.run_install(dry_run=True)
         self.assertEqual(len(changes), 8)
+        self.assertFalse(self.home.exists())
+
+    def test_check_missing_home_reports_drift_without_creating_anything(self):
+        before = self.tree_state(self.home)
+        code, stdout, stderr = self.run_main("--check")
+        self.assertEqual(code, 2)
+        self.assertEqual(stderr, "")
+        self.assertEqual(len([line for line in stdout.splitlines() if line.startswith("Drift: ")]), 8)
+        self.assertIsNone(self.tree_state(self.home))
+        self.assertEqual(before, self.tree_state(self.home))
+
+    def test_non_directory_home_or_agents_parent_is_an_error_without_writes(self):
+        for layout in ("home-file", "agents-file"):
+            with self.subTest(layout=layout):
+                self.home = Path(self.temp.name) / f"codex-{layout}"
+                if layout == "home-file":
+                    self.home.write_bytes(b"existing home file")
+                else:
+                    self.home.mkdir()
+                    (self.home / "agents").write_bytes(b"existing agents file")
+                before = self.tree_state(self.home)
+                for option in ("--check", "--dry-run"):
+                    code, stdout, stderr = self.run_main(option)
+                    self.assertEqual(code, 1)
+                    self.assertEqual(stdout, "")
+                    self.assertIn("Target parent is not a directory:", stderr)
+                    self.assertEqual(before, self.tree_state(self.home))
+                with self.assertRaisesRegex(installer.InstallError,
+                                            "Target parent is not a directory"):
+                    self.run_install()
+                self.assertEqual(before, self.tree_state(self.home))
+
+    def test_check_languages_match_only_selected_instruction_language(self):
+        self.run_install(language="en")
+        code, stdout, stderr = self.run_main("--check", "--language", "en")
+        self.assertEqual((code, stdout, stderr), (0, "Already up to date.\n", ""))
+        code, stdout, stderr = self.run_main("--check", "--language", "zh-CN")
+        self.assertEqual(code, 2)
+        self.assertEqual(stderr, "")
+        self.assertEqual(stdout, f"Drift: {self.home / 'AGENTS.md'}\n")
+
+    def test_check_reports_managed_drift_and_missing_targets_without_writes(self):
+        self.run_install()
+        agents = self.home / "AGENTS.md"
+        config = self.home / "config.toml"
+        role = self.home / "agents" / "luna_reader.toml"
+        agents.write_text(agents.read_text().replace("English rules", "Changed rules"))
+        config.write_text(config.read_text().replace('model = "gpt-6-sol"', 'model = "other"'))
+        role.write_text(role.read_text().replace("Fixture role", "Changed role"))
+        (self.home / "agents" / "sol_worker.toml").unlink()
+        before = self.tree_state(self.home)
+        code, stdout, stderr = self.run_main("--check")
+        self.assertEqual(code, 2)
+        self.assertEqual(stderr, "")
+        self.assertEqual(set(stdout.splitlines()), {
+            f"Drift: {agents}", f"Drift: {config}", f"Drift: {role}",
+            f"Drift: {self.home / 'agents' / 'sol_worker.toml'}",
+        })
+        self.assertEqual(before, self.tree_state(self.home))
+
+    def test_check_ignores_unmanaged_semantic_config_changes(self):
+        self.run_install()
+        config = self.home / "config.toml"
+        original = config.read_text()
+        config.write_text("# personal formatting\n" + original.replace(
+            'model = "gpt-6-sol"', 'model="gpt-6-sol"  # same value'))
+        code, stdout, stderr = self.run_main("--check")
+        self.assertEqual((code, stdout, stderr), (0, "Already up to date.\n", ""))
+
+    def test_check_can_compare_explicit_replace_strategy_without_writing(self):
+        self.home.mkdir()
+        agents = self.home / "AGENTS.md"
+        agents.write_text("Local rules\n")
+        role_dir = self.home / "agents"
+        role_dir.mkdir()
+        role = role_dir / "luna_reader.toml"
+        role.write_text('name = "local"\n')
+        before = self.tree_state(self.home)
+        code, stdout, stderr = self.run_main("--check", "--replace-instructions", "--replace-roles")
+        self.assertEqual(code, 2)
+        self.assertIn(f"Drift: {agents}", stdout)
+        self.assertIn(f"Drift: {role}", stdout)
+        self.assertEqual(stderr, "")
+        self.assertEqual(before, self.tree_state(self.home))
+        self.assertFalse((self.home / "backups").exists())
+
+    def test_cli_errors_and_help_exit_contract(self):
+        code, stdout, stderr = self.run_main("--unknown")
+        self.assertEqual(code, 1)
+        self.assertEqual(stdout, "")
+        self.assertIn("error:", stderr)
+        code, stdout, stderr = self.run_main("--check", "--dry-run")
+        self.assertEqual(code, 1)
+        self.assertEqual(stdout, "")
+        self.assertIn("cannot be used together", stderr)
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), "--help"], capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("--check", result.stdout)
+
+    def test_check_oserror_is_reported_as_error(self):
+        with patch.object(installer, "install", side_effect=OSError("permission denied")):
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                code = installer.main(["--check", "--codex-home", str(self.home)])
+        self.assertEqual(code, 1)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("permission denied", stderr.getvalue())
+
+    def test_dry_run_cli_regression_still_returns_zero_for_drift(self):
+        code, stdout, stderr = self.run_main("--dry-run")
+        self.assertEqual(code, 0)
+        self.assertEqual(stderr, "")
+        self.assertEqual(len([line for line in stdout.splitlines()
+                              if line.startswith("Would update: ")]), 8)
+        self.assertFalse(self.home.exists())
+
+    def test_subprocess_check_returns_real_drift_exit_code(self):
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), "--check", "--codex-home", str(self.home)],
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("Drift: ", result.stdout)
+        self.assertEqual(result.stderr, "")
         self.assertFalse(self.home.exists())
 
     def test_repeated_install_is_idempotent(self):

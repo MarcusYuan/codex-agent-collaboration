@@ -56,6 +56,14 @@ python3 scripts/install.py --language zh-CN
 
 安装器管理 AGENTS.md 中带标记的协作区块、agents/ 下六个文件，以及 [config/codex.toml](config/codex.toml) 中的主模型和子模型默认设置。无关配置会保留；有变化的已有文件备份到 backups/codex-agent-collaboration/。相同内容重复安装不会修改文件，预览不会写入文件。
 
+要检查磁盘上的受管文件是否与所选安装内容一致，运行：
+
+~~~bash
+python3 scripts/install.py --language zh-CN --check
+~~~
+
+`--check` 使用与预览相同的只读预检和差异计算。内容一致时输出 `Already up to date.` 并以 0 退出；有漂移时每个缺失或不同的目标输出一行 `Drift: <path>`，并以 2 退出；检查或参数错误输出到 stderr，并以 1 退出。`--check` 不能与 `--dry-run` 同时使用。可将 `--check` 与 `--replace-instructions` 或 `--replace-roles` 联用，按对应安装策略进行比较。`--dry-run` 列出待更新内容时仍以 0 退出。此检查只核对磁盘上的受管内容，不能证明正在运行的桌面任务实际使用了哪些模型、角色或工具。
+
 已有非托管指令和冲突的角色文件默认受保护。如果已检查并确定要替换，可以显式预览：
 
 ~~~bash

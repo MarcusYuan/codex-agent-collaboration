@@ -58,6 +58,19 @@ class InstallError(Exception):
     pass
 
 
+class _ArgumentError(Exception):
+    pass
+
+
+class _InstallerArgumentParser(argparse.ArgumentParser):
+    """Keep command-line mistakes distinct from check drift's exit status 2."""
+
+    def error(self, message: str) -> None:
+        self.print_usage(sys.stderr)
+        self._print_message(f"{self.prog}: error: {message}\n", sys.stderr)
+        raise _ArgumentError(message)
+
+
 def _read(path: Path) -> bytes:
     try:
         return path.read_bytes()
@@ -238,9 +251,12 @@ def _validate_role(data: dict, name: str, path: Path) -> None:
 def _check_path(path: Path, home: Path) -> None:
     if not path.is_relative_to(home):
         raise InstallError(f"Target escapes Codex home: {path}")
-    for candidate in (home, *(parent for parent in path.parents if parent.is_relative_to(home))):
+    parents = (home, *(parent for parent in path.parents if parent.is_relative_to(home)))
+    for candidate in parents:
         if candidate.is_symlink():
             raise InstallError(f"Symlink path is not allowed: {candidate}")
+        if candidate.exists() and not candidate.is_dir():
+            raise InstallError(f"Target parent is not a directory: {candidate}")
     if path.is_symlink():
         raise InstallError(f"Symlink target is not allowed: {path}")
     if path.exists() and not path.is_file():
@@ -357,22 +373,37 @@ def install(repo: Path, home: Path, language: str = "en", dry_run: bool = False,
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = _InstallerArgumentParser(description=__doc__)
     parser.add_argument("--codex-home", type=Path,
                         default=Path(os.environ.get("CODEX_HOME") or "~/.codex"))
     parser.add_argument("--language", choices=("en", "zh-CN"), default="en")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--check", action="store_true",
+                        help="check whether managed files match the selected installation")
     parser.add_argument("--replace-instructions", action="store_true")
     parser.add_argument("--replace-roles", action="store_true")
-    args = parser.parse_args(argv)
     try:
-        changes = install(REPO, args.codex_home, args.language, args.dry_run,
+        args = parser.parse_args(argv)
+    except _ArgumentError:
+        return 1
+    if args.check and args.dry_run:
+        try:
+            parser.error("--check and --dry-run cannot be used together")
+        except _ArgumentError:
+            return 1
+    try:
+        changes = install(REPO, args.codex_home, args.language,
+                          args.dry_run or args.check,
                           args.replace_instructions, args.replace_roles)
-    except InstallError as exc:
+    except (InstallError, OSError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
     if not changes:
         print("Already up to date.")
+    elif args.check:
+        for target in changes:
+            print(f"Drift: {target}")
+        return 2
     else:
         action = "Would update" if args.dry_run else "Updated"
         for target in changes:

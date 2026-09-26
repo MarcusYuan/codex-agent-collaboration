@@ -56,6 +56,14 @@ The target defaults to the existing CODEX_HOME environment setting or ~/.codex. 
 
 The installer manages a marked collaboration block in AGENTS.md, six files under agents/, and the main-model and subagent defaults listed in [config/codex.toml](config/codex.toml). It preserves unrelated configuration and backs up changed existing files under backups/codex-agent-collaboration/. An identical second installation makes no changes; dry-run writes nothing.
 
+To check whether the selected installation matches the managed files on disk, run:
+
+~~~bash
+python3 scripts/install.py --language en --check
+~~~
+
+`--check` performs the same read-only preflight and comparison as dry-run. It prints `Already up to date.` and exits 0 when there is no drift, prints one `Drift: <path>` line per differing or missing target and exits 2 when files need updating, and reports check or argument errors to stderr with exit code 1. `--check` and `--dry-run` cannot be combined. You may combine `--check` with `--replace-instructions` or `--replace-roles` to compare using that installation policy. `--dry-run` continues to exit 0 when it lists proposed changes. This checks managed disk contents only; it does not confirm which models, roles, or tools a running desktop task actually has available.
+
 Existing non-managed instructions and conflicting role files are protected. If you have reviewed them and intend to replace them, preview explicitly:
 
 ~~~bash
