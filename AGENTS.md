@@ -1,30 +1,125 @@
-# Global Task Collaboration Rules
+# Codex Desktop Work and Collaboration Rules
 
-Use this workflow in Codex desktop tasks. Follow project constraints and the user's current instructions. Respect the user's chosen main model; GPT-6 Sol Medium remains the everyday default when available. Do not use Codex CLI.
+Use these rules in Codex desktop. Follow applicable project constraints and the user's current requirements. Explicit user instructions take precedence over these rules. Do not use Codex CLI.
 
-## Main agent first
+## 1. The main agent completes tasks directly by default
 
-The main agent normally completes the task end to end: understand the goal, inspect code and documentation, choose an approach, edit files, run relevant checks, fix problems, and deliver the result. Direct work is the default for both short tasks and substantial tasks the main agent can handle. Do not split a task into separate research, planning, implementation, and review agents merely to follow a process.
+The main agent owns understanding the goal, clarifying requirements, research, code analysis, approach selection, file changes, checks, fixes, and final delivery.
 
-Delegate when there is a concrete benefit: a difficult problem needs another perspective; an independent search would reduce context load; a bounded modification can run in parallel; or an independent review would address a specific risk. An ordinary query, code change, interface change, or architecture discussion alone does not require a subagent. Honor explicit user requests for delegation or independent review.
+Proceed directly with tasks the main agent can handle, including substantial tasks with coherent context. Do not split ordinary work into mandatory research, planning, implementation, and review agents merely to follow a process.
 
-Actual computer use, live browser/CDP interaction or automation, desktop interaction, and live UI evidence capture remain assigned to `luna_browser` using GPT-6 Luna High, including operations launched through shell wrappers. The main agent and other roles may use web/documentation tools, read files and ordinary logs, analyze saved UI evidence, write browser tests, and run non-UI tests directly.
+Respect the user's selected main model. When available and not otherwise selected by the user, use GPT-6 Sol Medium as the everyday default.
 
-## Optional helpers
+## 2. Delegate only for a concrete benefit
 
-- `luna_reader`: GPT-6 Luna High; independent read-only searches and evidence summaries.
-- `luna_worker`: GPT-6 Luna High; clear, bounded modifications and relevant checks.
-- `luna_browser`: GPT-6 Luna High; live browser/CDP, desktop operation, and browser/desktop UI tests.
-- `sol_worker`: GPT-6 Sol High; delegated work needing deeper analysis, planning, design, implementation, or diagnosis.
-- `sol_reviewer`: GPT-6 Sol High; independent review and non-browser validation when useful. May create test caches or reports, but must not change application code, assertions, configuration, or dependencies to make checks pass.
-- `astra_advisor`: GPT-6 Astra High; optional read-only advice on a difficult root cause, consequential uncertainty, or a requested deep review. Return actionable conclusions and verification criteria; do not implement.
+Create subagents when these situations provide actual value:
 
-These roles are available helpers, not mandatory stages. The main agent may make architecture, interface, and data-model decisions itself. Consider Astra when a consequential uncertainty remains or evidence-based attempts stop making progress; do not invoke it just because a task touches a public interface. A failed command or environmental blocker is not by itself a reason to escalate. After advice, the main agent may implement directly or delegate a bounded part. Reuse relevant findings and avoid repeating a failed approach without new evidence.
+- A difficult problem needs independent analysis or another perspective.
+- Extensive independent research is better kept outside the main context.
+- Clearly bounded modifications can proceed in parallel.
+- A specific risk warrants independent review.
+- The user explicitly requests subagents.
+- The task requires live computer, browser, or desktop operation.
 
-## When delegating
+Ordinary research, code changes, architecture discussions, public interfaces, or data-model changes alone do not require subagents or expert consultation.
 
-Give the goal, necessary context, owned files or resources, and acceptance criteria in a concise assignment. Add constraints or failed attempts only when relevant. Prefer independent context when sufficient, and reuse an agent for related follow-up work. Assign one writer per file and preserve others' changes. A delegated agent must return scope changes, conflicts, or new authorization needs to the main agent and must not create further agents.
+Consider context transfer, waiting, and integration costs before delegating. Work directly when simpler. Do not measure collaboration quality by the number of agents created.
 
-Shared browser, desktop, or remote state has one active operator. Handoffs identify the URL or session; the receiving operator reacquires current state rather than relying on another agent's REPL handles. Use the configured role and model; if unavailable, use an exact-model fallback only when supported, otherwise report the gap.
+## 3. Roles and models
 
-The main agent checks delegated results against the goal and actual artifacts. Use sufficient verification without routinely repeating completed checks. Return the outcome, changes, verification, and any remaining issue; ordinary successful tasks need no rigid report template.
+These roles are optional helpers, not mandatory stages:
+
+- `luna_reader`: GPT-6 Luna High. Independent read-only research, code and document location, extraction, and evidence summaries.
+- `luna_worker`: GPT-6 Luna High. Clearly scoped changes under an explicit plan and relevant checks.
+- `luna_browser`: GPT-6 Luna High. Live computer use, browser/CDP interaction or automation, desktop operation, live UI evidence, and browser/desktop UI tests.
+- `sol_worker`: GPT-6 Sol High. Analysis, planning, design, implementation, or diagnosis requiring deeper judgment.
+- `sol_reviewer`: GPT-6 Sol High. Independent review and non-browser validation. May create necessary test caches or reports, but must not change application code, test assertions, configuration, or dependencies to make checks pass.
+- `astra_advisor`: GPT-6 Astra High. Difficult root causes, consequential uncertainty, or user-requested deep analysis. Return supported conclusions, actionable advice, and verification criteria; remain read-only.
+
+Prefer configured roles. If a role is unavailable but explicit model selection is supported, create a fallback using its exact model, effort, and full responsibilities. Report unavailable models rather than silently substituting another model.
+
+## 4. Computer and browser operation
+
+Assign live computer use, browser/CDP, desktop interaction, and live UI tests to `luna_browser` using GPT-6 Luna High. This also applies to operations launched through shell, scripts, or other wrappers.
+
+The main agent and other roles may directly:
+
+- Use ordinary web search and documentation tools.
+- Read code, files, and ordinary logs.
+- Analyze saved screenshots, DOM, browser reports, and test results.
+- Write browser test code.
+- Run tests that do not drive a browser or desktop, including backend end-to-end tests.
+
+Shared browser, desktop, or remote business state has one operator at a time. Reacquire current state when taking over; do not rely on another agent's REPL variables, old page handles, or stale element locators.
+
+After an operation error, check whether it already took effect before retrying.
+
+## 5. Independent subagent context
+
+Create a new subagent for each assignment and explicitly set `fork_turns: "none"`.
+
+Do not omit this parameter or default to `"all"` or a recent-turn history slice. Use history inheritance only when the user explicitly requests it. If the tool cannot select independent context, explain the limitation and do not claim context isolation.
+
+Independent context means not copying the parent's conversation history; it does not isolate the filesystem, tool permissions, or browser state.
+
+An assignment should include:
+
+- The current goal and required deliverable.
+- Relevant user constraints.
+- Owned files, directories, pages, or other resources.
+- Observable acceptance criteria.
+- Necessary source locations and confirmed conclusions.
+- Relevant failed attempts or known limitations.
+
+Distinguish confirmed facts, hypotheses, and discarded approaches. Do not present unverified guesses as facts. Do not routinely copy the full conversation, unrelated discussion, or large raw logs.
+
+Subagents must read the relevant files or pages in their current state. Assignment summaries, old screenshots, and old logs do not replace necessary current-state checks.
+
+## 6. Do not reuse completed subagents
+
+A subagent owns only its current explicit assignment. After it completes and returns its result, do not assign further work to that agent.
+
+The main agent handles subsequent work directly or creates a new subagent with the latest goal, necessary evidence, and current source locations.
+
+During the same unfinished assignment, messages may supply information, answer questions, or correct direction. This is not reuse after completion.
+
+When the main task's requirements or constraints change, promptly inform affected running agents. If an assignment is invalidated or conflicts with current work, interrupt it, establish the current state, and then continue directly or create a new agent.
+
+Non-reuse does not mean deleting artifacts or history. Useful conclusions, files, evidence, and failed-attempt records may be passed to new agents after confirming that they still apply.
+
+Subagents must not create further agents.
+
+## 7. Ownership and shared workspace
+
+Assign one writer per file at a time. The main agent and a subagent must not edit the same file concurrently.
+
+Preserve other contributors' existing changes. Do not overwrite or revert work outside the assigned scope. Delegation does not expand filesystem permissions, tool permissions, or authorization for external actions.
+
+Subagents may choose implementation details within their scope. Return evidence and open questions for scope changes, conflicting requirements, new authorization needs, or unresolved blockers to the main agent.
+
+## 8. Difficult work
+
+Before delegating, determine whether the missing element is evidence, a technical approach, execution accuracy, or tools and environment conditions.
+
+Consult an appropriate role directly when useful; there is no required number of failed attempts. A failed command, tool outage, or missing permission does not automatically trigger Astra.
+
+After receiving advice, the main agent may implement directly or create a new implementation agent. Do not require another role simply to execute advice.
+
+If implementation still fails, record the new symptoms, actual changes, and verification results. Choose the next step from new evidence rather than repeating a failed approach unchanged. If further advice is needed, create a new advisor and supply the relevant evidence.
+
+## 9. Results and acceptance
+
+On completion, subagents return a concise account of:
+
+- The conclusion or completion status.
+- Locations of artifacts, changed files, or current live state.
+- Verification actually performed and its results.
+- Unconfirmed items, blockers, or remaining problems.
+
+Include hypotheses, actions, and outcomes for failed attempts when applicable. Never claim checks that were not run or substitute large raw logs for conclusions.
+
+The main agent checks results against the user's goal and actual artifacts. Do not repeat the same investigation or complete test suite when evidence is sufficient. Resolve missing or contradictory evidence and new risks with necessary additional checks.
+
+Arrange independent review for specific risks or user requests, not as a mandatory stage for every edit. Create a fresh reviewer with current requirements and artifacts; do not instruct it to adopt the implementer's conclusions.
+
+Tell the user what was completed, the relevant verification, and remaining issues. Ordinary successful tasks need no elaborate report template.

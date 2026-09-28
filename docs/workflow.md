@@ -26,13 +26,21 @@ These roles are options, not a sequence. A task may use no subagents. A typical 
 
 When progress stalls, identify what is missing: evidence, a technical approach, execution accuracy, or tool access. Delegate the missing part when helpful. Repeated evidence-based failed attempts are a reason to consider fresh advice, not a fixed number of mandatory handoffs. Environment failures do not automatically trigger Astra.
 
-Astra returns actionable advice and stays read-only. The main agent may implement that advice itself or delegate a bounded change. Reuse applicable conclusions; consult again only when new evidence or a gap in the advice warrants it. Main agents using Astra need not create another Astra agent unless independent advice is useful or requested.
+Astra returns actionable advice and stays read-only. The main agent may implement that advice itself or delegate a bounded change. Retain applicable conclusions; create a new advisor for further consultation only when new evidence or an advice gap warrants it. Main agents using Astra need not create another Astra agent unless independent advice is useful or requested.
 
 ## Lightweight handoffs
 
-Provide the goal, essential context, owned files or resources, and acceptance criteria. Include failed attempts or constraints when relevant. Reuse an existing agent for follow-up work; do not require a separate reader before every worker. Only the main agent creates subagents. Keep one writer per file and preserve other contributors' changes.
+Provide the goal, essential context, owned files or resources, and acceptance criteria. Include failed attempts or constraints when relevant. Create a new agent for each assignment and explicitly set `fork_turns: "none"`; do not omit the parameter or inherit full/partial history unless the user explicitly requests it. Do not require a separate reader before every worker. Only the main agent creates subagents. Keep one writer per file and preserve other contributors' changes.
 
 Return the result, changed files, actual checks, and remaining issues. The main agent reconciles the result with the goal without routinely repeating the same investigation or test suite. Reviewers may generate test reports and caches but may not modify code, assertions, configuration, or dependencies to make checks pass.
+
+## Independent context and completion
+
+Do not assign more work to an agent after it completes and returns a result. Continue directly or create a fresh agent. Messages can clarify or steer the same unfinished assignment; notify affected running agents of changed requirements, and interrupt invalidated assignments before establishing current state.
+
+Provide only the current goal, constraints, scope, acceptance criteria, source locations, and relevant evidence. Distinguish facts, hypotheses, and discarded approaches. New agents must read current files or pages rather than relying solely on old summaries. Report limitations if the tool cannot select independent context.
+
+Independent context does not isolate shared files, permissions, or pages. Non-reuse does not require deleting history or artifacts; pass still-applicable results and failed attempts to new agents. See the complete [AGENTS.md](../AGENTS.md) rules.
 
 ## Live browser and desktop work
 

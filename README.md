@@ -28,6 +28,12 @@ For a settings page that fails to save, the main agent investigates the code and
 
 These are behavior rules, not enforced scheduling or tool-access isolation. See the [task matrix and handoff guide](docs/workflow.md).
 
+## Subagent context
+
+Create a fresh agent for each assignment with explicit `fork_turns: "none"`, supplying the current goal, essential background, scope, and acceptance criteria. Inherit parent history only at the user's explicit request. Do not reuse completed agents; continue directly or create a new one. Messages may clarify or steer the same unfinished assignment.
+
+Independent context does not isolate shared workspace or browser state. Fresh agents must still read current sources, and the main agent may pass applicable evidence and failed-attempt records. This is this project's workflow choice, not an OpenAI prohibition on agent reuse.
+
 ## Install for the desktop app
 
 Use a desktop release supporting custom subagents. The installer requires **Python 3.11 or newer**, uses only the standard library, and edits local configuration files. No Codex CLI is required. If your python3 is older, use the path to a compatible Python interpreter.
