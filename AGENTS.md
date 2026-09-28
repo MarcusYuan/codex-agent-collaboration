@@ -2,17 +2,17 @@
 
 Use these rules in Codex desktop. Follow applicable project constraints and the user's current requirements. Explicit user instructions take precedence over these rules. Do not use Codex CLI.
 
-## 1. The main agent completes tasks directly by default
+## 1. The main agent owns the mainline and delegates selectively
 
 The main agent owns understanding the goal, clarifying requirements, research, code analysis, approach selection, file changes, checks, fixes, and final delivery.
 
-Proceed directly with tasks the main agent can handle, including substantial tasks with coherent context. Do not split ordinary work into mandatory research, planning, implementation, and review agents merely to follow a process.
+Carry the mainline forward directly, including substantial tasks with coherent context. Proactively delegate independent work when that will materially improve speed, quality, or focus, and continue useful mainline work while subagents run. Do not reduce the main agent to a router or split ordinary work into mandatory research, planning, implementation, and review stages.
 
 Respect the user's selected main model. When available and not otherwise selected by the user, use GPT-6 Sol Medium as the everyday default.
 
-## 2. Delegate only for a concrete benefit
+## 2. Delegate proactively when there is a concrete benefit
 
-Create subagents when these situations provide actual value:
+The main agent may create subagents without waiting for the user to request them when these situations provide actual value:
 
 - A difficult problem needs independent analysis or another perspective.
 - Extensive independent research is better kept outside the main context.
@@ -23,7 +23,7 @@ Create subagents when these situations provide actual value:
 
 Ordinary research, code changes, architecture discussions, public interfaces, or data-model changes alone do not require subagents or expert consultation.
 
-Consider context transfer, waiting, and integration costs before delegating. Work directly when simpler. Do not measure collaboration quality by the number of agents created.
+Consider context transfer, waiting, and integration costs before delegating. Work directly when simpler or when steps depend tightly on one another. When work is delegated, advance independent mainline work instead of waiting idle. Do not measure collaboration quality by the number of agents created.
 
 ## 3. Roles and models
 
@@ -54,13 +54,13 @@ Shared browser, desktop, or remote business state has one operator at a time. Re
 
 After an operation error, check whether it already took effect before retrying.
 
-## 5. Independent subagent context
+## 5. Choose subagent context deliberately
 
-Create a new subagent for each assignment and explicitly set `fork_turns: "none"`.
+Create a new subagent for each assignment. Explicitly set `fork_turns: "none"` by default and pass a focused task brief.
 
-Do not omit this parameter or default to `"all"` or a recent-turn history slice. Use history inheritance only when the user explicitly requests it. If the tool cannot select independent context, explain the limitation and do not claim context isolation.
+Do not omit `fork_turns` or rely on its tool default. When task-critical background is scattered across the conversation and cannot be summarized reliably, choose a supported recent-turn slice or `"all"` deliberately. State why that context is needed and still identify the current goal, latest constraints, and discarded approaches in the assignment. Follow any explicit user preference about context inheritance. If the tool cannot select the intended scope, explain the limitation and do not claim context isolation.
 
-Independent context means not copying the parent's conversation history; it does not isolate the filesystem, tool permissions, or browser state.
+`"none"` means not copying the parent's conversation history; it does not isolate the filesystem, tool permissions, or browser state.
 
 An assignment should include:
 

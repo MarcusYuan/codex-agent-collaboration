@@ -2,19 +2,19 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-**The main agent completes the task and delegates when help is useful.**
+**The main agent drives the task and proactively delegates independent work when useful.**
 
 This project provides bilingual instructions, six optional helper roles, and a backup-aware installer for Codex desktop. It is a personal workflow configuration; cost and quality effects need evaluation on actual tasks.
 
 ## Default workflow
 
-The main agent normally uses **GPT-6 Sol Medium** and directly handles analysis, research, planning, implementation, testing, and delivery. Respect the user's explicit main-model choice. Do not split ordinary tasks into a sequence of specialist roles.
+The main agent normally uses **GPT-6 Sol Medium** and owns analysis, research, planning, implementation, testing, and delivery. Respect the user's explicit main-model choice. It advances the mainline directly and continues independent work while subagents run. Do not turn it into a router or split ordinary tasks into a sequence of specialist roles.
 
-Use subagents when there is a concrete benefit: a difficult problem needs help, a search can run independently, a bounded change can run in parallel, or a specific risk warrants independent review. Architecture or interface changes do not automatically trigger Astra; the main agent may implement its advice directly.
+Proactively use subagents when there is a concrete benefit: a difficult problem needs another perspective, a search can run independently, a bounded change can run in parallel, or a specific risk warrants independent review. The user need not explicitly request delegation. Architecture or interface changes do not automatically trigger Astra; the main agent may implement its advice directly.
 
 | Role | Model / effort | Optional use |
 | --- | --- | --- |
-| Main agent | GPT-6 Sol / Medium | Default owner of analysis, implementation, verification, and delivery |
+| Main agent | GPT-6 Sol / Medium | Drives the mainline, delegates useful independent work, integrates results, and delivers |
 | luna_reader | GPT-6 Luna / High | Independent read-only research |
 | luna_worker | GPT-6 Luna / High | Clear, bounded modifications |
 | luna_browser | GPT-6 Luna / High | Computer-use, browser/CDP, and live UI operation |
@@ -30,7 +30,7 @@ These are behavior rules, not enforced scheduling or tool-access isolation. See 
 
 ## Subagent context
 
-Create a fresh agent for each assignment with explicit `fork_turns: "none"`, supplying the current goal, essential background, scope, and acceptance criteria. Inherit parent history only at the user's explicit request. Do not reuse completed agents; continue directly or create a new one. Messages may clarify or steer the same unfinished assignment.
+Create a fresh agent for each assignment. Explicitly set `fork_turns: "none"` by default and supply the current goal, essential background, scope, and acceptance criteria. If task-critical context is scattered across the conversation and cannot be summarized reliably, deliberately choose a supported recent-turn slice or `"all"`, explain why, and restate the latest requirements and discarded approaches. Honor any explicit user preference; never omit `fork_turns`. Do not reuse completed agents; continue directly or create a new one. Messages may clarify or steer the same unfinished assignment.
 
 Independent context does not isolate shared workspace or browser state. Fresh agents must still read current sources, and the main agent may pass applicable evidence and failed-attempt records. This is this project's workflow choice, not an OpenAI prohibition on agent reuse.
 
