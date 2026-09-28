@@ -2,39 +2,31 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-**Let the main agent route work and carry context. Let specialist subagents do the technical work.**
+**The main agent completes the task and delegates when help is useful.**
 
-This project configures native subagents in the Codex desktop experience. It includes bilingual instructions, six custom agent definitions, and an installer that backs up changed files. It is a personal workflow configuration, not an official OpenAI product. Cost and quality improvements have not been measured.
+This project provides bilingual instructions, six optional helper roles, and a backup-aware installer for Codex desktop. It is a personal workflow configuration; cost and quality effects need evaluation on actual tasks.
 
-![A lead routes bounded tasks to specialist models](assets/model-routing-before-after.png)
+## Default workflow
 
-## Responsibilities
+The main agent normally uses **GPT-6 Sol Medium** and directly handles analysis, research, planning, implementation, testing, and delivery. Respect the user's explicit main-model choice. Do not split ordinary tasks into a sequence of specialist roles.
 
-The main agent normally uses **GPT-6 Sol Medium**. It maintains the user's goal, routes work, supplies context, manages dependencies and blockers, and assembles the final delivery. The user's explicit main-model choice takes precedence.
+Use subagents when there is a concrete benefit: a difficult problem needs help, a search can run independently, a bounded change can run in parallel, or a specific risk warrants independent review. Architecture or interface changes do not automatically trigger Astra; the main agent may implement its advice directly.
 
-Subagents own bounded deliverables: investigation, technical decisions, implementation, and professional verification. sol_worker can start from a goal and refine requirements, business rules, acceptance criteria, an ordinary technical approach, dependencies, interaction/visual direction, applicable design artifacts, and test strategy before implementation; the main agent retains user clarification, routing, and coordination. Important architecture, public interfaces, data models, and consequential tradeoffs go to astra_advisor. The main agent checks results against the goal and constraints, without routinely repeating their reasoning or every check.
-
-| Role | Model / effort | Responsibility |
+| Role | Model / effort | Optional use |
 | --- | --- | --- |
-| Main agent | GPT-6 Sol / Medium | Routing, context, dependencies, coordination, final delivery |
-| luna_reader | GPT-6 Luna / High | Read-only search and evidence gathering |
-| luna_worker | GPT-6 Luna / High | Clear, bounded implementation and relevant checks |
-| luna_browser | GPT-6 Luna / High | Computer-use, CDP, browser automation, live UI evidence |
-| sol_worker | GPT-6 Sol / High | Goal-to-plan refinement, complex implementation, and diagnosis |
-| sol_reviewer | GPT-6 Sol / High | Professional review and verification |
-| astra_advisor | GPT-6 Astra / High | Read-only technical decisions, consequential tradeoffs, difficult root causes |
+| Main agent | GPT-6 Sol / Medium | Default owner of analysis, implementation, verification, and delivery |
+| luna_reader | GPT-6 Luna / High | Independent read-only research |
+| luna_worker | GPT-6 Luna / High | Clear, bounded modifications |
+| luna_browser | GPT-6 Luna / High | Computer-use, browser/CDP, and live UI operation |
+| sol_worker | GPT-6 Sol / High | Delegated work requiring deeper judgment |
+| sol_reviewer | GPT-6 Sol / High | Independent review for a concrete need |
+| astra_advisor | GPT-6 Astra / High | Read-only advice on difficult problems or consequential uncertainty |
 
-**Computer-use and CDP stay on Luna.** Sol and Astra may analyze saved screenshots and logs; live browser or desktop operations remain with luna_browser, including during escalated diagnosis. Shell wrappers and other browser tools follow the same rule.
+**Computer-use and CDP still use Luna.** The main agent may perform ordinary web/documentation queries and non-UI checks directly; live browser or desktop operation goes to luna_browser.
 
-These are behavior rules, not a guaranteed routing engine or a tool-access security boundary. Roles remain subject to runtime permissions and tool availability.
+For a settings page that fails to save, the main agent investigates the code and fixes it while Luna reproduces and retests the browser flow. Add another helper only if the root cause proves difficult or independent review is needed. Do not add handoffs just to exercise all six roles.
 
-## From request to delivery
-
-For a settings page that fails to save, the main agent assigns live UI investigation to luna_browser and independent code investigation to a reader or worker. sol_worker can refine the acceptance criteria and investigate a complex cause; a worker fixes the supported cause. Astra handles a consequential decision or a root cause that remains unresolved after evidence-based repair rounds. Luna repeats the browser flow; a reviewer can inspect the patch and evidence and run relevant non-browser checks.
-
-The main agent passes decisions and evidence between owners and reports the result. This is an example, not a mandatory sequence: short tasks do not need every role, and related follow-up work should reuse an existing subagent.
-
-See the [task matrix and handoff contract](docs/workflow.md).
+These are behavior rules, not enforced scheduling or tool-access isolation. See the [task matrix and handoff guide](docs/workflow.md).
 
 ## Install for the desktop app
 
