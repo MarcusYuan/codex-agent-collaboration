@@ -24,9 +24,10 @@ import tomllib
 
 REPO = Path(__file__).resolve().parent.parent
 ROLES = (
-    "luna_reader", "luna_worker", "luna_browser", "sol_worker",
+    "luna_reader", "luna_browser", "sol_worker", "sol_analyst",
     "sol_reviewer", "astra_advisor",
 )
+RETIRED_ROLES = ("luna_worker",)
 ROLE_MARKER = "# Managed by codex-agent-collaboration\n"
 START = "<!-- BEGIN codex-agent-collaboration managed instructions -->"
 END = "<!-- END codex-agent-collaboration managed instructions -->"
@@ -36,10 +37,11 @@ AGENT_KEYS = (
     "default_subagent_reasoning_effort",
 )
 ROLE_MODELS = {
-    "luna_reader": "gpt-6-luna", "luna_worker": "gpt-6-luna",
+    "luna_reader": "gpt-6-luna", "sol_analyst": "gpt-6.1-sol",
     "luna_browser": "gpt-6-luna", "sol_worker": "gpt-6.1-sol",
     "sol_reviewer": "gpt-6.1-sol", "astra_advisor": "gpt-6-astra",
 }
+ROLE_EFFORTS = {name: "medium" if name == "sol_worker" else "high" for name in ROLES}
 REQUIRED_CONFIG = {
     "model": "gpt-6.1-sol",
     "model_reasoning_effort": "medium",
@@ -244,8 +246,9 @@ def _validate_role(data: dict, name: str, path: Path) -> None:
         raise InstallError(f"Source role {path} has wrong name: expected {name}")
     if data.get("model") != ROLE_MODELS[name]:
         raise InstallError(f"Source role {path} has wrong model: expected {ROLE_MODELS[name]}")
-    if data.get("model_reasoning_effort") != "high":
-        raise InstallError(f"Source role {path} needs model_reasoning_effort = high")
+    effort = ROLE_EFFORTS[name]
+    if data.get("model_reasoning_effort") != effort:
+        raise InstallError(f"Source role {path} needs model_reasoning_effort = {effort}")
 
 
 def _check_path(path: Path, home: Path) -> None:
@@ -297,18 +300,25 @@ def install(repo: Path, home: Path, language: str = "en", dry_run: bool = False,
     _toml(snippet, "config/codex.toml")
 
     targets = [home / "AGENTS.md", home / "config.toml"]
-    targets += [home / "agents" / f"{name}.toml" for name in ROLES]
+    role_targets = [home / "agents" / f"{name}.toml" for name in ROLES]
+    retired_targets = [home / "agents" / f"{name}.toml" for name in RETIRED_ROLES]
+    targets += retired_targets + role_targets
     for target in targets:
         _check_path(target, home)
     previous = {target: _read(target) if target.exists() else None for target in targets}
     old_modes = {target: stat.S_IMODE(target.stat().st_mode)
                  for target in targets if previous[target] is not None}
-    proposed: dict[Path, bytes] = {}
+    proposed: dict[Path, bytes | None] = {}
     current_agents = _text(previous[targets[0]] or b"", str(targets[0]))
     proposed[targets[0]] = _managed_instructions(
         current_agents, source_text, replace_instructions).encode("utf-8")
     proposed[targets[1]] = _config(previous[targets[1]] or b"", snippet)
-    for name, target in zip(ROLES, targets[2:]):
+    for target in retired_targets:
+        current = previous[target]
+        if current is not None and not current.startswith(ROLE_MARKER.encode()):
+            raise InstallError(f"Retired role is unmanaged: {target}; preserve or relocate it manually before installing")
+        proposed[target] = None
+    for name, target in zip(ROLES, role_targets):
         role_path = repo / "agents" / f"{name}.toml"
         source = _read(role_path)
         role = _toml(source, str(role_path))
@@ -339,7 +349,8 @@ def install(repo: Path, home: Path, language: str = "en", dry_run: bool = False,
         for target in changes:
             old = previous[target]
             relative = target.relative_to(home)
-            entry = {"target": str(relative), "existed": old is not None}
+            entry = {"target": str(relative), "existed": old is not None,
+                     "action": "remove" if proposed[target] is None else "update"}
             if old is not None:
                 entry["mode"] = old_modes[target]
                 saved = backup_dir / relative
@@ -351,7 +362,10 @@ def install(repo: Path, home: Path, language: str = "en", dry_run: bool = False,
         for target in changes:
             old = previous[target]
             mode = old_modes[target] if old is not None else 0o600
-            _atomic_write(target, proposed[target], mode)
+            if proposed[target] is None:
+                target.unlink()
+            else:
+                _atomic_write(target, proposed[target], mode)
             written.append(target)
     except OSError as exc:
         rollback_errors = []
@@ -405,8 +419,10 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Drift: {target}")
         return 2
     else:
-        action = "Would update" if args.dry_run else "Updated"
         for target in changes:
+            retired = target.name in {f"{name}.toml" for name in RETIRED_ROLES}
+            action = ("Would remove" if args.dry_run else "Removed") if retired else (
+                "Would update" if args.dry_run else "Updated")
             print(f"{action}: {target}")
     return 0
 

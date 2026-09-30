@@ -16,11 +16,13 @@
 | --- | --- | --- |
 | 主智能体 | GPT-6.1 Sol / Medium | 推进主线、委派有价值的独立工作、整合结果并交付 |
 | luna_reader | GPT-6 Luna / High | 独立只读查询 |
-| luna_worker | GPT-6 Luna / High | 明确且有边界的修改 |
 | luna_browser | GPT-6 Luna / High | 电脑、浏览器/CDP、实时 UI 操作 |
-| sol_worker | GPT-6.1 Sol / High | 需要较深入判断的委派任务 |
+| sol_worker | GPT-6.1 Sol / Medium | 有明确范围的实现、普通分析和相关检查 |
+| sol_analyst | GPT-6.1 Sol / High | 困难诊断与技术判断；受委派时完成紧密相关的修复 |
 | sol_reviewer | GPT-6.1 Sol / High | 有具体需要的独立审查 |
 | astra_advisor | GPT-6 Astra / High | 困难问题或重大不确定性的只读建议 |
+
+普通分析与实现使用 Medium；存在重大不确定性或困难推理时考虑 High，不要求实施前固定经过独立分析阶段。
 
 **computer-use 和 CDP 仍固定使用 Luna。** 普通网页/文档查询和非 UI 检查可由主智能体直接进行，实时浏览器或桌面操作交给 luna_browser。
 
@@ -52,7 +54,7 @@ python3 scripts/install.py --language zh-CN
 
 目标默认取已有 CODEX_HOME 环境设置，否则使用 ~/.codex。其他桌面配置目录可用 --codex-home /绝对路径 指定。英文规则使用 --language en，只需安装一种语言。
 
-安装器管理 AGENTS.md 中带标记的协作区块、agents/ 下六个文件，以及 [config/codex.toml](config/codex.toml) 中的主模型和子模型默认设置。无关配置会保留；有变化的已有文件备份到 backups/codex-agent-collaboration/。相同内容重复安装不会修改文件，预览不会写入文件。
+安装器管理 AGENTS.md 中带标记的协作区块、agents/ 下六个文件，以及 [config/codex.toml](config/codex.toml) 中的主模型和子模型默认设置。无关配置会保留；有变化的已有文件备份到 backups/codex-agent-collaboration/。相同内容重复安装不会修改文件，预览不会写入文件。升级还会备份并移除已退役的受管 `agents/luna_worker.toml`，新增 `sol_analyst`，将 `sol_worker` 设为 Medium。如果旧角色路径是非托管文件，安装会在任何修改前停止，即使指定 `--replace-roles` 也不会删除它；应先手动保留或迁移该文件。预览用 `Would remove` 标明待删除项，`--check` 将其报告为漂移。
 
 要检查磁盘上的受管文件是否与所选安装内容一致，运行：
 

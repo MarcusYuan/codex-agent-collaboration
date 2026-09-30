@@ -8,9 +8,9 @@ The main agent drives research, planning, design, implementation, debugging, non
 
 | Situation | Default approach | When to delegate |
 | --- | --- | --- |
-| Requirements, ordinary plans, design, or technical decisions | Main agent | Use sol_worker for an independent, substantial deliverable needing deeper judgment |
+| Requirements, ordinary plans, design, or technical decisions | Main agent | Use sol_analyst for independent work involving difficult reasoning or consequential uncertainty |
 | Code, documentation, or web research | Main agent | Use luna_reader for an independent search or to keep a large investigation out of the main context |
-| Code changes, documentation, scripts, skills, MCP, or plugins | Main agent | Use luna_worker for clear bounded work, or sol_worker for deeper implementation judgment, when useful |
+| Code changes, documentation, scripts, skills, MCP, or plugins | Main agent | Use sol_worker Medium for scoped implementation and ordinary analysis; use sol_analyst High for difficult reasoning, including tightly coupled fixes when assigned |
 | Architecture, public interfaces, data models, or hard root causes | Main agent | Consult read-only astra_advisor for consequential unresolved uncertainty or a useful independent perspective; no automatic gate |
 | Live computer-use, browser/CDP, desktop operation, or UI evidence | luna_browser, GPT-6 Luna High | Always delegate the live operation; main agent may analyze saved evidence |
 | Interaction or visual implementation | Main agent | Delegate an independent implementation when helpful; use applicable design skills |
@@ -20,7 +20,7 @@ The main agent drives research, planning, design, implementation, debugging, non
 | Independent review | Optional sol_reviewer | Use for a specific risk or user request; do not add a reviewer to every edit |
 | User communication and final delivery | Main agent | Integrate any delegated results and resolve missing evidence |
 
-These roles are options, not a sequence. A task may use no subagents; substantial independent work need not wait for the user to request delegation. A typical UI bug needs the main agent to inspect and fix code while Luna reproduces and verifies the UI; add other roles only for an actual need.
+Choose Medium or High by difficulty and uncertainty, not merely whether a task is called analysis or implementation. Workers perform their own ordinary analysis and checks; an analyst is not a prerequisite. These roles are options, not a sequence. A task may use no subagents; substantial independent work need not wait for the user to request delegation. A typical UI bug needs the main agent to inspect and fix code while Luna reproduces and verifies the UI; add other roles only for an actual need.
 
 ## Difficult work
 

@@ -30,11 +30,13 @@ Consider context transfer, waiting, and integration costs before delegating. Wor
 These roles are optional helpers, not mandatory stages:
 
 - `luna_reader`: GPT-6 Luna High. Independent read-only research, code and document location, extraction, and evidence summaries.
-- `luna_worker`: GPT-6 Luna High. Clearly scoped changes under an explicit plan and relevant checks.
 - `luna_browser`: GPT-6 Luna High. Live computer use, browser/CDP interaction or automation, desktop operation, live UI evidence, and browser/desktop UI tests.
-- `sol_worker`: GPT-6.1 Sol High. Analysis, planning, design, implementation, or diagnosis requiring deeper judgment.
+- `sol_worker`: GPT-6.1 Sol Medium. Scoped features, fixes, refactors, tests, scripts, and documentation, including ordinary analysis and relevant checks.
+- `sol_analyst`: GPT-6.1 Sol High. Difficult root causes, complex approach comparisons, cross-module effects, and key technical uncertainties. May implement tightly coupled fixes when explicitly included in the assignment; otherwise remains read-only.
 - `sol_reviewer`: GPT-6.1 Sol High. Independent review and non-browser validation. May create necessary test caches or reports, but must not change application code, test assertions, configuration, or dependencies to make checks pass.
 - `astra_advisor`: GPT-6 Astra High. Difficult root causes, consequential uncertainty, or user-requested deep analysis. Return supported conclusions, actionable advice, and verification criteria; remain read-only.
+
+Choose effort by difficulty and uncertainty. Ordinary analysis and implementation can use Medium; difficult reasoning may justify High. Do not require an analyst before a worker or add a handoff when an assigned analyst can complete a tightly coupled fix.
 
 Prefer configured roles. If a role is unavailable but explicit model selection is supported, create a fallback using its exact model, effort, and full responsibilities. Report unavailable models rather than silently substituting another model.
 

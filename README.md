@@ -16,11 +16,13 @@ Proactively use subagents when there is a concrete benefit: a difficult problem 
 | --- | --- | --- |
 | Main agent | GPT-6.1 Sol / Medium | Drives the mainline, delegates useful independent work, integrates results, and delivers |
 | luna_reader | GPT-6 Luna / High | Independent read-only research |
-| luna_worker | GPT-6 Luna / High | Clear, bounded modifications |
 | luna_browser | GPT-6 Luna / High | Computer-use, browser/CDP, and live UI operation |
-| sol_worker | GPT-6.1 Sol / High | Delegated work requiring deeper judgment |
+| sol_worker | GPT-6.1 Sol / Medium | Scoped implementation, ordinary analysis, and relevant checks |
+| sol_analyst | GPT-6.1 Sol / High | Difficult diagnosis and technical decisions; tightly coupled fixes when assigned |
 | sol_reviewer | GPT-6.1 Sol / High | Independent review for a concrete need |
 | astra_advisor | GPT-6 Astra / High | Read-only advice on difficult problems or consequential uncertainty |
+
+Medium handles ordinary analysis and implementation. Use High for consequential uncertainty or difficult reasoning, without requiring a separate analyst stage before implementation.
 
 **Computer-use and CDP still use Luna.** The main agent may perform ordinary web/documentation queries and non-UI checks directly; live browser or desktop operation goes to luna_browser.
 
@@ -52,7 +54,7 @@ python3 scripts/install.py --language en
 
 The target defaults to the existing CODEX_HOME environment setting or ~/.codex. Use --codex-home /absolute/path for a different desktop configuration home. Choose --language zh-CN for Chinese instructions; install only one language.
 
-The installer manages a marked collaboration block in AGENTS.md, six files under agents/, and the main-model and subagent defaults listed in [config/codex.toml](config/codex.toml). It preserves unrelated configuration and backs up changed existing files under backups/codex-agent-collaboration/. An identical second installation makes no changes; dry-run writes nothing.
+The installer manages a marked collaboration block in AGENTS.md, six files under agents/, and the main-model and subagent defaults listed in [config/codex.toml](config/codex.toml). It preserves unrelated configuration and backs up changed existing files under backups/codex-agent-collaboration/. An identical second installation makes no changes; dry-run writes nothing. Upgrades also back up and remove the retired managed `agents/luna_worker.toml`, add `sol_analyst`, and set `sol_worker` to Medium. An unmanaged file at the retired path blocks installation before any changes, including with `--replace-roles`; preserve or relocate it manually. Dry-run labels planned removal as `Would remove`, and `--check` reports it as drift.
 
 To check whether the selected installation matches the managed files on disk, run:
 

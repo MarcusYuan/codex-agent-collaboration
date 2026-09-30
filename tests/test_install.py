@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import io
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -39,7 +40,7 @@ class InstallTests(unittest.TestCase):
                 f'name = "{role}"\n'
                 'description = "Fixture role"\n'
                 f'model = "{installer.ROLE_MODELS[role]}"\n'
-                'model_reasoning_effort = "high"\n'
+                f'model_reasoning_effort = "{installer.ROLE_EFFORTS[role]}"\n'
                 'developer_instructions = "Do the fixture task."\n', encoding="utf-8")
 
     def run_install(self, **options):
@@ -113,13 +114,112 @@ class InstallTests(unittest.TestCase):
         for path in sol_paths:
             role = tomllib.loads(path.read_text())
             self.assertEqual(role["model"], "gpt-6.1-sol")
-            self.assertEqual(role["model_reasoning_effort"], "high")
+            self.assertEqual(role["model_reasoning_effort"], installer.ROLE_EFFORTS[path.stem])
         for path, content in unchanged.items():
             self.assertEqual(path.read_bytes(), content)
         backup = sorted((self.home / "backups" / "codex-agent-collaboration").iterdir())[-1]
         for path, content in previous.items():
             self.assertEqual((backup / path.relative_to(self.home)).read_bytes(), content)
         self.assertEqual(self.run_install(), [])
+
+    def prepare_previous_role_layout(self):
+        self.run_install()
+        analyst = self.home / "agents" / "sol_analyst.toml"
+        analyst.unlink()
+        worker = self.home / "agents" / "sol_worker.toml"
+        worker.write_text(worker.read_text().replace(
+            'model_reasoning_effort = "medium"', 'model_reasoning_effort = "high"'))
+        retired = self.home / "agents" / "luna_worker.toml"
+        retired.write_text(worker.read_text().replace('sol_worker', 'luna_worker').replace(
+            'gpt-6.1-sol', 'gpt-6-luna'))
+        retired.chmod(0o640)
+        return retired, worker, analyst
+
+    def test_role_transition_preview_check_backup_and_idempotence(self):
+        retired, worker, analyst = self.prepare_previous_role_layout()
+        old_retired = retired.read_bytes()
+        before = self.tree_state(self.home)
+        code, stdout, stderr = self.run_main("--dry-run")
+        self.assertEqual((code, stderr), (0, ""))
+        self.assertIn(f"Would remove: {retired}\n", stdout)
+        self.assertEqual(before, self.tree_state(self.home))
+        code, stdout, stderr = self.run_main("--check")
+        self.assertEqual((code, stderr), (2, ""))
+        self.assertEqual(set(stdout.splitlines()), {f"Drift: {path}" for path in (retired, worker, analyst)})
+        self.assertEqual(before, self.tree_state(self.home))
+        code, stdout, stderr = self.run_main()
+        self.assertEqual((code, stderr), (0, ""))
+        self.assertIn(f"Removed: {retired}\n", stdout)
+        self.assertFalse(retired.exists())
+        self.assertEqual(tomllib.loads(worker.read_text())["model_reasoning_effort"], "medium")
+        self.assertEqual(tomllib.loads(analyst.read_text())["model_reasoning_effort"], "high")
+        backup = sorted((self.home / "backups" / "codex-agent-collaboration").iterdir())[-1]
+        self.assertEqual((backup / "agents" / "luna_worker.toml").read_bytes(), old_retired)
+        entries = json.loads((backup / "manifest.json").read_text())
+        entry = next(item for item in entries if item["target"] == "agents/luna_worker.toml")
+        self.assertEqual((entry["action"], entry["mode"]), ("remove", 0o640))
+        self.assertEqual(self.run_install(), [])
+        self.assertEqual(self.run_main("--check"), (0, "Already up to date.\n", ""))
+
+    def test_unmanaged_retired_role_blocks_all_changes(self):
+        retired, _, _ = self.prepare_previous_role_layout()
+        retired.write_text('name = "personal_role"\n')
+        before = self.tree_state(self.home)
+        for options in ({}, {"dry_run": True}, {"replace_roles": True}):
+            with self.subTest(options=options), self.assertRaisesRegex(installer.InstallError, "Retired role is unmanaged"):
+                self.run_install(**options)
+            self.assertEqual(before, self.tree_state(self.home))
+
+    def test_failure_after_retirement_restores_role_and_permissions(self):
+        retired, worker, analyst = self.prepare_previous_role_layout()
+        old_retired, old_worker = retired.read_bytes(), worker.read_bytes()
+        original_write = installer._atomic_write
+
+        def fail_worker(path, data, mode=0o600):
+            if path == worker:
+                self.assertFalse(retired.exists())
+                raise OSError("simulated role write failure")
+            return original_write(path, data, mode)
+
+        with patch.object(installer, "_atomic_write", side_effect=fail_worker):
+            with self.assertRaisesRegex(installer.InstallError, "simulated role write failure"):
+                self.run_install()
+        self.assertEqual(retired.read_bytes(), old_retired)
+        self.assertEqual(retired.stat().st_mode & 0o777, 0o640)
+        self.assertEqual(worker.read_bytes(), old_worker)
+        self.assertFalse(analyst.exists())
+
+    def test_wrong_worker_or_analyst_effort_blocks_install(self):
+        for name, bad_effort in (("sol_worker", "high"), ("sol_analyst", "medium")):
+            path = self.repo / "agents" / f"{name}.toml"
+            original = path.read_text()
+            with self.subTest(name=name):
+                path.write_text(original.replace(
+                    f'model_reasoning_effort = "{installer.ROLE_EFFORTS[name]}"',
+                    f'model_reasoning_effort = "{bad_effort}"'))
+                with self.assertRaisesRegex(installer.InstallError, "model_reasoning_effort"):
+                    self.run_install()
+                self.assertFalse(self.home.exists())
+            path.write_text(original)
+
+    def test_retirement_failure_rolls_back_prior_instruction_update(self):
+        retired, worker, analyst = self.prepare_previous_role_layout()
+        instructions = self.home / "AGENTS.md"
+        instructions.write_text(instructions.read_text().replace("English rules", "Previous rules"))
+        previous = {path: path.read_bytes() for path in (instructions, retired, worker)}
+        original_unlink = Path.unlink
+
+        def fail_retirement(path, *args, **kwargs):
+            if path == retired:
+                raise OSError("simulated retirement failure")
+            return original_unlink(path, *args, **kwargs)
+
+        with patch.object(Path, "unlink", fail_retirement):
+            with self.assertRaisesRegex(installer.InstallError, "simulated retirement failure"):
+                self.run_install()
+        for path, content in previous.items():
+            self.assertEqual(path.read_bytes(), content)
+        self.assertFalse(analyst.exists())
 
     def test_unmanaged_instructions_and_roles_are_protected(self):
         self.home.mkdir()
