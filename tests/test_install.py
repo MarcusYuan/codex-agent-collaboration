@@ -90,6 +90,37 @@ class InstallTests(unittest.TestCase):
         self.assertEqual(parsed["tools"], {"web": True})
         self.assertEqual(result.count("[agents]"), 1)
 
+    def test_upgrade_managed_sol_models_preserves_other_settings(self):
+        self.run_install()
+        config = self.home / "config.toml"
+        config.write_text('# Personal setting\napproval_policy = "on-request"\n' +
+                          config.read_text().replace('gpt-6.1-sol', 'gpt-6-sol'))
+        sol_paths = [self.home / "agents" / f"{role}.toml"
+                     for role in ("sol_worker", "sol_reviewer")]
+        for path in sol_paths:
+            path.write_text(path.read_text().replace('gpt-6.1-sol', 'gpt-6-sol'))
+        other_roles = {self.home / "agents" / f"{role}.toml"
+                       for role in installer.ROLES} - set(sol_paths)
+        unchanged = {path: path.read_bytes() for path in other_roles}
+        previous = {path: path.read_bytes() for path in [config, *sol_paths]}
+
+        self.assertEqual(set(self.run_install()), set(previous))
+        parsed = tomllib.loads(config.read_text())
+        self.assertEqual(parsed["model"], "gpt-6.1-sol")
+        self.assertEqual(parsed["model_reasoning_effort"], "medium")
+        self.assertEqual(parsed["approval_policy"], "on-request")
+        self.assertTrue(config.read_text().startswith("# Personal setting\n"))
+        for path in sol_paths:
+            role = tomllib.loads(path.read_text())
+            self.assertEqual(role["model"], "gpt-6.1-sol")
+            self.assertEqual(role["model_reasoning_effort"], "high")
+        for path, content in unchanged.items():
+            self.assertEqual(path.read_bytes(), content)
+        backup = sorted((self.home / "backups" / "codex-agent-collaboration").iterdir())[-1]
+        for path, content in previous.items():
+            self.assertEqual((backup / path.relative_to(self.home)).read_bytes(), content)
+        self.assertEqual(self.run_install(), [])
+
     def test_unmanaged_instructions_and_roles_are_protected(self):
         self.home.mkdir()
         (self.home / "AGENTS.md").write_text("Personal rules\n")
@@ -168,7 +199,7 @@ class InstallTests(unittest.TestCase):
         config = self.home / "config.toml"
         role = self.home / "agents" / "luna_reader.toml"
         agents.write_text(agents.read_text().replace("English rules", "Changed rules"))
-        config.write_text(config.read_text().replace('model = "gpt-6-sol"', 'model = "other"'))
+        config.write_text(config.read_text().replace('model = "gpt-6.1-sol"', 'model = "other"'))
         role.write_text(role.read_text().replace("Fixture role", "Changed role"))
         (self.home / "agents" / "sol_worker.toml").unlink()
         before = self.tree_state(self.home)
@@ -186,7 +217,7 @@ class InstallTests(unittest.TestCase):
         config = self.home / "config.toml"
         original = config.read_text()
         config.write_text("# personal formatting\n" + original.replace(
-            'model = "gpt-6-sol"', 'model="gpt-6-sol"  # same value'))
+            'model = "gpt-6.1-sol"', 'model="gpt-6.1-sol"  # same value'))
         code, stdout, stderr = self.run_main("--check")
         self.assertEqual((code, stdout, stderr), (0, "Already up to date.\n", ""))
 
@@ -261,7 +292,7 @@ class InstallTests(unittest.TestCase):
         self.home.mkdir()
         snippet = (self.repo / "config" / "codex.toml").read_text()
         original = ("# Keep this exact formatting\n" + snippet.replace(
-            'model = "gpt-6-sol"', 'model="gpt-6-sol"  # selected model'))
+            'model = "gpt-6.1-sol"', 'model="gpt-6.1-sol"  # selected model'))
         (self.home / "config.toml").write_text(original)
         self.run_install()
         self.assertEqual((self.home / "config.toml").read_text(), original)
@@ -289,7 +320,7 @@ class InstallTests(unittest.TestCase):
 
     def test_wrong_role_model_preflight_changes_nothing(self):
         role = self.repo / "agents" / "luna_browser.toml"
-        role.write_text(role.read_text().replace('gpt-6-luna', 'gpt-6-sol'))
+        role.write_text(role.read_text().replace('gpt-6-luna', 'gpt-6.1-sol'))
         with self.assertRaisesRegex(installer.InstallError, "wrong model"):
             self.run_install()
         self.assertFalse(self.home.exists())
@@ -303,7 +334,7 @@ class InstallTests(unittest.TestCase):
 
     def test_bad_source_config_shape_preflight_changes_nothing(self):
         (self.repo / "config" / "codex.toml").write_text(
-            'model = "gpt-6-sol"\nmodel_reasoning_effort = "medium"\nagents = "bad"\n')
+            'model = "gpt-6.1-sol"\nmodel_reasoning_effort = "medium"\nagents = "bad"\n')
         with self.assertRaisesRegex(installer.InstallError, "expected root and agents fields"):
             self.run_install()
         self.assertFalse(self.home.exists())

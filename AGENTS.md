@@ -8,7 +8,7 @@ The main agent owns understanding the goal, clarifying requirements, research, c
 
 Carry the mainline forward directly, including substantial tasks with coherent context. Proactively delegate independent work when that will materially improve speed, quality, or focus, and continue useful mainline work while subagents run. Do not reduce the main agent to a router or split ordinary work into mandatory research, planning, implementation, and review stages.
 
-Respect the user's selected main model. When available and not otherwise selected by the user, use GPT-6 Sol Medium as the everyday default.
+Respect the user's selected main model. When available and not otherwise selected by the user, use GPT-6.1 Sol Medium as the everyday default.
 
 ## 2. Delegate proactively when there is a concrete benefit
 
@@ -32,8 +32,8 @@ These roles are optional helpers, not mandatory stages:
 - `luna_reader`: GPT-6 Luna High. Independent read-only research, code and document location, extraction, and evidence summaries.
 - `luna_worker`: GPT-6 Luna High. Clearly scoped changes under an explicit plan and relevant checks.
 - `luna_browser`: GPT-6 Luna High. Live computer use, browser/CDP interaction or automation, desktop operation, live UI evidence, and browser/desktop UI tests.
-- `sol_worker`: GPT-6 Sol High. Analysis, planning, design, implementation, or diagnosis requiring deeper judgment.
-- `sol_reviewer`: GPT-6 Sol High. Independent review and non-browser validation. May create necessary test caches or reports, but must not change application code, test assertions, configuration, or dependencies to make checks pass.
+- `sol_worker`: GPT-6.1 Sol High. Analysis, planning, design, implementation, or diagnosis requiring deeper judgment.
+- `sol_reviewer`: GPT-6.1 Sol High. Independent review and non-browser validation. May create necessary test caches or reports, but must not change application code, test assertions, configuration, or dependencies to make checks pass.
 - `astra_advisor`: GPT-6 Astra High. Difficult root causes, consequential uncertainty, or user-requested deep analysis. Return supported conclusions, actionable advice, and verification criteria; remain read-only.
 
 Prefer configured roles. If a role is unavailable but explicit model selection is supported, create a fallback using its exact model, effort, and full responsibilities. Report unavailable models rather than silently substituting another model.

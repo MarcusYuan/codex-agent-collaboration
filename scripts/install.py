@@ -37,11 +37,11 @@ AGENT_KEYS = (
 )
 ROLE_MODELS = {
     "luna_reader": "gpt-6-luna", "luna_worker": "gpt-6-luna",
-    "luna_browser": "gpt-6-luna", "sol_worker": "gpt-6-sol",
-    "sol_reviewer": "gpt-6-sol", "astra_advisor": "gpt-6-astra",
+    "luna_browser": "gpt-6-luna", "sol_worker": "gpt-6.1-sol",
+    "sol_reviewer": "gpt-6.1-sol", "astra_advisor": "gpt-6-astra",
 }
 REQUIRED_CONFIG = {
-    "model": "gpt-6-sol",
+    "model": "gpt-6.1-sol",
     "model_reasoning_effort": "medium",
     "agents": {
         "enabled": True,

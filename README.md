@@ -8,18 +8,18 @@ This project provides bilingual instructions, six optional helper roles, and a b
 
 ## Default workflow
 
-The main agent normally uses **GPT-6 Sol Medium** and owns analysis, research, planning, implementation, testing, and delivery. Respect the user's explicit main-model choice. It advances the mainline directly and continues independent work while subagents run. Do not turn it into a router or split ordinary tasks into a sequence of specialist roles.
+The main agent normally uses **GPT-6.1 Sol Medium** and owns analysis, research, planning, implementation, testing, and delivery. Respect the user's explicit main-model choice. It advances the mainline directly and continues independent work while subagents run. Do not turn it into a router or split ordinary tasks into a sequence of specialist roles.
 
 Proactively use subagents when there is a concrete benefit: a difficult problem needs another perspective, a search can run independently, a bounded change can run in parallel, or a specific risk warrants independent review. The user need not explicitly request delegation. Architecture or interface changes do not automatically trigger Astra; the main agent may implement its advice directly.
 
 | Role | Model / effort | Optional use |
 | --- | --- | --- |
-| Main agent | GPT-6 Sol / Medium | Drives the mainline, delegates useful independent work, integrates results, and delivers |
+| Main agent | GPT-6.1 Sol / Medium | Drives the mainline, delegates useful independent work, integrates results, and delivers |
 | luna_reader | GPT-6 Luna / High | Independent read-only research |
 | luna_worker | GPT-6 Luna / High | Clear, bounded modifications |
 | luna_browser | GPT-6 Luna / High | Computer-use, browser/CDP, and live UI operation |
-| sol_worker | GPT-6 Sol / High | Delegated work requiring deeper judgment |
-| sol_reviewer | GPT-6 Sol / High | Independent review for a concrete need |
+| sol_worker | GPT-6.1 Sol / High | Delegated work requiring deeper judgment |
+| sol_reviewer | GPT-6.1 Sol / High | Independent review for a concrete need |
 | astra_advisor | GPT-6 Astra / High | Read-only advice on difficult problems or consequential uncertainty |
 
 **Computer-use and CDP still use Luna.** The main agent may perform ordinary web/documentation queries and non-UI checks directly; live browser or desktop operation goes to luna_browser.
