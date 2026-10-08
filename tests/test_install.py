@@ -68,11 +68,11 @@ class InstallTests(unittest.TestCase):
 
     def test_new_install_and_language(self):
         changes = self.run_install(language="zh-CN")
-        self.assertEqual(len(changes), 8)
+        self.assertEqual(len(changes), 4)
         self.assertIn("中文规则", (self.home / "AGENTS.md").read_text())
-        self.assertEqual(tomllib.loads((self.home / "config.toml").read_text())["agents"]
-                         ["max_concurrent_threads_per_session"], 8)
-        self.assertTrue((self.home / "agents" / "luna_reader.toml").read_text()
+        self.assertEqual(tomllib.loads((self.home / "config.toml").read_text())["agents"],
+                         {"enabled": True})
+        self.assertTrue((self.home / "agents" / "luna_browser.toml").read_text()
                         .startswith(installer.ROLE_MARKER))
         backups = list((self.home / "backups" / "codex-agent-collaboration").iterdir())
         self.assertEqual(len(backups), 1)
@@ -96,14 +96,10 @@ class InstallTests(unittest.TestCase):
         config = self.home / "config.toml"
         config.write_text('# Personal setting\napproval_policy = "on-request"\n' +
                           config.read_text().replace('gpt-6.1-sol', 'gpt-6-sol'))
-        sol_paths = [self.home / "agents" / f"{role}.toml"
-                     for role in ("sol_worker", "sol_reviewer")]
-        for path in sol_paths:
-            path.write_text(path.read_text().replace('gpt-6.1-sol', 'gpt-6-sol'))
         other_roles = {self.home / "agents" / f"{role}.toml"
-                       for role in installer.ROLES} - set(sol_paths)
+                       for role in installer.ROLES}
         unchanged = {path: path.read_bytes() for path in other_roles}
-        previous = {path: path.read_bytes() for path in [config, *sol_paths]}
+        previous = {config: config.read_bytes()}
 
         self.assertEqual(set(self.run_install()), set(previous))
         parsed = tomllib.loads(config.read_text())
@@ -111,10 +107,6 @@ class InstallTests(unittest.TestCase):
         self.assertEqual(parsed["model_reasoning_effort"], "medium")
         self.assertEqual(parsed["approval_policy"], "on-request")
         self.assertTrue(config.read_text().startswith("# Personal setting\n"))
-        for path in sol_paths:
-            role = tomllib.loads(path.read_text())
-            self.assertEqual(role["model"], "gpt-6.1-sol")
-            self.assertEqual(role["model_reasoning_effort"], installer.ROLE_EFFORTS[path.stem])
         for path, content in unchanged.items():
             self.assertEqual(path.read_bytes(), content)
         backup = sorted((self.home / "backups" / "codex-agent-collaboration").iterdir())[-1]
@@ -124,46 +116,60 @@ class InstallTests(unittest.TestCase):
 
     def prepare_previous_role_layout(self):
         self.run_install()
-        analyst = self.home / "agents" / "sol_analyst.toml"
-        analyst.unlink()
-        worker = self.home / "agents" / "sol_worker.toml"
-        worker.write_text(worker.read_text().replace(
-            'model_reasoning_effort = "medium"', 'model_reasoning_effort = "high"'))
-        retired = self.home / "agents" / "luna_worker.toml"
-        retired.write_text(worker.read_text().replace('sol_worker', 'luna_worker').replace(
-            'gpt-6.1-sol', 'gpt-6-luna'))
-        retired.chmod(0o640)
-        return retired, worker, analyst
+        expert = self.home / "agents" / "astra_expert.toml"
+        expert.unlink()
+        browser = self.home / "agents" / "luna_browser.toml"
+        browser.write_text(browser.read_text().replace("Fixture role", "Previous browser role"))
+        retired = {}
+        for name in installer.RETIRED_ROLES:
+            path = self.home / "agents" / f"{name}.toml"
+            path.write_text(installer.ROLE_MARKER + f'name = "{name}"\n')
+            path.chmod(0o640)
+            retired[path] = path.read_bytes()
+        config = self.home / "config.toml"
+        config.write_text(config.read_text() +
+                          'max_concurrent_threads_per_session = 8\n'
+                          'default_subagent_model = "gpt-6-luna"\n'
+                          'default_subagent_reasoning_effort = "high"\n')
+        return retired, browser, expert
 
     def test_role_transition_preview_check_backup_and_idempotence(self):
-        retired, worker, analyst = self.prepare_previous_role_layout()
-        old_retired = retired.read_bytes()
+        retired, browser, expert = self.prepare_previous_role_layout()
+        config = self.home / "config.toml"
+        old_config = config.read_bytes()
         before = self.tree_state(self.home)
         code, stdout, stderr = self.run_main("--dry-run")
         self.assertEqual((code, stderr), (0, ""))
-        self.assertIn(f"Would remove: {retired}\n", stdout)
+        for path in retired:
+            self.assertIn(f"Would remove: {path}\n", stdout)
         self.assertEqual(before, self.tree_state(self.home))
         code, stdout, stderr = self.run_main("--check")
         self.assertEqual((code, stderr), (2, ""))
-        self.assertEqual(set(stdout.splitlines()), {f"Drift: {path}" for path in (retired, worker, analyst)})
+        self.assertEqual(set(stdout.splitlines()), {
+            f"Drift: {path}" for path in (*retired, config, browser, expert)})
         self.assertEqual(before, self.tree_state(self.home))
         code, stdout, stderr = self.run_main()
         self.assertEqual((code, stderr), (0, ""))
-        self.assertIn(f"Removed: {retired}\n", stdout)
-        self.assertFalse(retired.exists())
-        self.assertEqual(tomllib.loads(worker.read_text())["model_reasoning_effort"], "medium")
-        self.assertEqual(tomllib.loads(analyst.read_text())["model_reasoning_effort"], "high")
+        for path in retired:
+            self.assertIn(f"Removed: {path}\n", stdout)
+            self.assertFalse(path.exists())
+        self.assertEqual(tomllib.loads(config.read_text())["agents"], {"enabled": True})
+        self.assertEqual(tomllib.loads(expert.read_text())["model"], "gpt-6-astra")
+        self.assertEqual(tomllib.loads(browser.read_text())["model"], "gpt-6-luna")
         backup = sorted((self.home / "backups" / "codex-agent-collaboration").iterdir())[-1]
-        self.assertEqual((backup / "agents" / "luna_worker.toml").read_bytes(), old_retired)
+        self.assertEqual((backup / "config.toml").read_bytes(), old_config)
         entries = json.loads((backup / "manifest.json").read_text())
-        entry = next(item for item in entries if item["target"] == "agents/luna_worker.toml")
-        self.assertEqual((entry["action"], entry["mode"]), ("remove", 0o640))
+        for path, content in retired.items():
+            relative = path.relative_to(self.home)
+            self.assertEqual((backup / relative).read_bytes(), content)
+            entry = next(item for item in entries if item["target"] == str(relative))
+            self.assertEqual((entry["action"], entry["mode"]), ("remove", 0o640))
         self.assertEqual(self.run_install(), [])
         self.assertEqual(self.run_main("--check"), (0, "Already up to date.\n", ""))
 
     def test_unmanaged_retired_role_blocks_all_changes(self):
         retired, _, _ = self.prepare_previous_role_layout()
-        retired.write_text('name = "personal_role"\n')
+        next(iter(retired)).write_text('name = "personal_role"\n')
         before = self.tree_state(self.home)
         for options in ({}, {"dry_run": True}, {"replace_roles": True}):
             with self.subTest(options=options), self.assertRaisesRegex(installer.InstallError, "Retired role is unmanaged"):
@@ -171,46 +177,51 @@ class InstallTests(unittest.TestCase):
             self.assertEqual(before, self.tree_state(self.home))
 
     def test_failure_after_retirement_restores_role_and_permissions(self):
-        retired, worker, analyst = self.prepare_previous_role_layout()
-        old_retired, old_worker = retired.read_bytes(), worker.read_bytes()
+        retired, browser, expert = self.prepare_previous_role_layout()
+        config = self.home / "config.toml"
+        previous = {path: path.read_bytes() for path in (*retired, config, browser)}
         original_write = installer._atomic_write
 
-        def fail_worker(path, data, mode=0o600):
-            if path == worker:
-                self.assertFalse(retired.exists())
+        def fail_browser(path, data, mode=0o600):
+            if path == browser:
+                self.assertTrue(all(not path.exists() for path in retired))
+                self.assertTrue(expert.exists())
                 raise OSError("simulated role write failure")
             return original_write(path, data, mode)
 
-        with patch.object(installer, "_atomic_write", side_effect=fail_worker):
+        with patch.object(installer, "_atomic_write", side_effect=fail_browser):
             with self.assertRaisesRegex(installer.InstallError, "simulated role write failure"):
                 self.run_install()
-        self.assertEqual(retired.read_bytes(), old_retired)
-        self.assertEqual(retired.stat().st_mode & 0o777, 0o640)
-        self.assertEqual(worker.read_bytes(), old_worker)
-        self.assertFalse(analyst.exists())
+        for path, content in previous.items():
+            self.assertEqual(path.read_bytes(), content)
+        for path in retired:
+            self.assertEqual(path.stat().st_mode & 0o777, 0o640)
+        self.assertFalse(expert.exists())
 
-    def test_wrong_worker_or_analyst_effort_blocks_install(self):
-        for name, bad_effort in (("sol_worker", "high"), ("sol_analyst", "medium")):
+    def test_wrong_specialist_effort_blocks_install(self):
+        for name in installer.ROLES:
             path = self.repo / "agents" / f"{name}.toml"
             original = path.read_text()
             with self.subTest(name=name):
                 path.write_text(original.replace(
                     f'model_reasoning_effort = "{installer.ROLE_EFFORTS[name]}"',
-                    f'model_reasoning_effort = "{bad_effort}"'))
+                    'model_reasoning_effort = "medium"'))
                 with self.assertRaisesRegex(installer.InstallError, "model_reasoning_effort"):
                     self.run_install()
                 self.assertFalse(self.home.exists())
             path.write_text(original)
 
     def test_retirement_failure_rolls_back_prior_instruction_update(self):
-        retired, worker, analyst = self.prepare_previous_role_layout()
+        retired, browser, expert = self.prepare_previous_role_layout()
         instructions = self.home / "AGENTS.md"
         instructions.write_text(instructions.read_text().replace("English rules", "Previous rules"))
-        previous = {path: path.read_bytes() for path in (instructions, retired, worker)}
+        config = self.home / "config.toml"
+        previous = {path: path.read_bytes() for path in (instructions, *retired, config, browser)}
+        failed_path = list(retired)[-1]
         original_unlink = Path.unlink
 
         def fail_retirement(path, *args, **kwargs):
-            if path == retired:
+            if path == failed_path:
                 raise OSError("simulated retirement failure")
             return original_unlink(path, *args, **kwargs)
 
@@ -219,7 +230,7 @@ class InstallTests(unittest.TestCase):
                 self.run_install()
         for path, content in previous.items():
             self.assertEqual(path.read_bytes(), content)
-        self.assertFalse(analyst.exists())
+        self.assertFalse(expert.exists())
 
     def test_unmanaged_instructions_and_roles_are_protected(self):
         self.home.mkdir()
@@ -229,14 +240,14 @@ class InstallTests(unittest.TestCase):
         self.assertFalse((self.home / "config.toml").exists())
         changes = self.run_install(replace_instructions=True)
         self.assertIn(self.home / "AGENTS.md", changes)
-        (self.home / "agents" / "luna_reader.toml").write_text('name = "other"\n')
+        (self.home / "agents" / "luna_browser.toml").write_text('name = "other"\n')
         before = (self.home / "AGENTS.md").read_bytes()
         with self.assertRaisesRegex(installer.InstallError, "replace-roles"):
             self.run_install()
         self.assertEqual((self.home / "AGENTS.md").read_bytes(), before)
         self.run_install(replace_roles=True)
-        self.assertIn('name = "luna_reader"',
-                      (self.home / "agents" / "luna_reader.toml").read_text())
+        self.assertIn('name = "luna_browser"',
+                      (self.home / "agents" / "luna_browser.toml").read_text())
 
     def test_managed_block_preserves_text_outside_it(self):
         self.home.mkdir()
@@ -251,7 +262,7 @@ class InstallTests(unittest.TestCase):
 
     def test_dry_run_is_zero_write(self):
         changes = self.run_install(dry_run=True)
-        self.assertEqual(len(changes), 8)
+        self.assertEqual(len(changes), 4)
         self.assertFalse(self.home.exists())
 
     def test_check_missing_home_reports_drift_without_creating_anything(self):
@@ -259,7 +270,7 @@ class InstallTests(unittest.TestCase):
         code, stdout, stderr = self.run_main("--check")
         self.assertEqual(code, 2)
         self.assertEqual(stderr, "")
-        self.assertEqual(len([line for line in stdout.splitlines() if line.startswith("Drift: ")]), 8)
+        self.assertEqual(len([line for line in stdout.splitlines() if line.startswith("Drift: ")]), 4)
         self.assertIsNone(self.tree_state(self.home))
         self.assertEqual(before, self.tree_state(self.home))
 
@@ -297,18 +308,18 @@ class InstallTests(unittest.TestCase):
         self.run_install()
         agents = self.home / "AGENTS.md"
         config = self.home / "config.toml"
-        role = self.home / "agents" / "luna_reader.toml"
+        role = self.home / "agents" / "luna_browser.toml"
         agents.write_text(agents.read_text().replace("English rules", "Changed rules"))
         config.write_text(config.read_text().replace('model = "gpt-6.1-sol"', 'model = "other"'))
         role.write_text(role.read_text().replace("Fixture role", "Changed role"))
-        (self.home / "agents" / "sol_worker.toml").unlink()
+        (self.home / "agents" / "astra_expert.toml").unlink()
         before = self.tree_state(self.home)
         code, stdout, stderr = self.run_main("--check")
         self.assertEqual(code, 2)
         self.assertEqual(stderr, "")
         self.assertEqual(set(stdout.splitlines()), {
             f"Drift: {agents}", f"Drift: {config}", f"Drift: {role}",
-            f"Drift: {self.home / 'agents' / 'sol_worker.toml'}",
+            f"Drift: {self.home / 'agents' / 'astra_expert.toml'}",
         })
         self.assertEqual(before, self.tree_state(self.home))
 
@@ -327,7 +338,7 @@ class InstallTests(unittest.TestCase):
         agents.write_text("Local rules\n")
         role_dir = self.home / "agents"
         role_dir.mkdir()
-        role = role_dir / "luna_reader.toml"
+        role = role_dir / "luna_browser.toml"
         role.write_text('name = "local"\n')
         before = self.tree_state(self.home)
         code, stdout, stderr = self.run_main("--check", "--replace-instructions", "--replace-roles")
@@ -366,7 +377,7 @@ class InstallTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(stderr, "")
         self.assertEqual(len([line for line in stdout.splitlines()
-                              if line.startswith("Would update: ")]), 8)
+                              if line.startswith("Would update: ")]), 4)
         self.assertFalse(self.home.exists())
 
     def test_subprocess_check_returns_real_drift_exit_code(self):
@@ -406,13 +417,13 @@ class InstallTests(unittest.TestCase):
         self.assertFalse((self.home / "backups").exists())
 
     def test_invalid_role_preflight_changes_nothing(self):
-        (self.repo / "agents" / "sol_worker.toml").write_text("[invalid\n")
+        (self.repo / "agents" / "astra_expert.toml").write_text("[invalid\n")
         with self.assertRaisesRegex(installer.InstallError, "Invalid TOML"):
             self.run_install()
         self.assertFalse(self.home.exists())
 
     def test_missing_role_field_preflight_changes_nothing(self):
-        role = self.repo / "agents" / "luna_reader.toml"
+        role = self.repo / "agents" / "luna_browser.toml"
         role.write_text(role.read_text().replace('description = "Fixture role"\n', ''))
         with self.assertRaisesRegex(installer.InstallError, "nonempty string description"):
             self.run_install()
@@ -426,8 +437,8 @@ class InstallTests(unittest.TestCase):
         self.assertFalse(self.home.exists())
 
     def test_wrong_role_name_preflight_changes_nothing(self):
-        role = self.repo / "agents" / "sol_worker.toml"
-        role.write_text(role.read_text().replace('name = "sol_worker"', 'name = "other"'))
+        role = self.repo / "agents" / "astra_expert.toml"
+        role.write_text(role.read_text().replace('name = "astra_expert"', 'name = "other"'))
         with self.assertRaisesRegex(installer.InstallError, "wrong name"):
             self.run_install()
         self.assertFalse(self.home.exists())
@@ -440,19 +451,58 @@ class InstallTests(unittest.TestCase):
         self.assertFalse(self.home.exists())
 
     def test_numeric_values_do_not_masquerade_as_managed_types(self):
-        for index, override in enumerate(("enabled = 1", "max_concurrent_threads_per_session = 8.0")):
+        for index, override in enumerate(("enabled = 1", "enabled = 1.0")):
             with self.subTest(override=override):
                 self.home = Path(self.temp.name) / f"codex-numeric-{index}"
                 self.home.mkdir()
                 snippet = (self.repo / "config" / "codex.toml").read_text()
-                old = ("enabled = true" if index == 0
-                       else "max_concurrent_threads_per_session = 8")
-                (self.home / "config.toml").write_text(snippet.replace(old, override))
+                (self.home / "config.toml").write_text(snippet.replace("enabled = true", override))
                 changes = self.run_install()
                 self.assertIn(self.home / "config.toml", changes)
                 parsed = tomllib.loads((self.home / "config.toml").read_text())
                 self.assertIs(type(parsed["agents"]["enabled"]), bool)
-                self.assertIs(type(parsed["agents"]["max_concurrent_threads_per_session"]), int)
+
+    def test_removed_agent_defaults_preserve_comments_and_nested_settings(self):
+        self.home.mkdir()
+        original = (
+            '# Personal settings\nmodel = "gpt-6.1-sol"\n'
+            'model_reasoning_effort = "medium"\n\n[agents] # Agent settings\n'
+            '# Keep this standalone comment\nenabled = true\n'
+            'max_concurrent_threads_per_session = 8 # old cap\n'
+            'default_subagent_model = "gpt-6-luna"\n'
+            'default_subagent_reasoning_effort = "high"\n'
+            'custom_setting = "keep" # personal\n'
+            '\n[agents.custom_role]\nconfig_file = "custom.toml"\n'
+            '\n[profiles.personal.agents]\ndefault_subagent_model = "personal-model"\n'
+        )
+        config = self.home / "config.toml"
+        config.write_text(original)
+        unrelated = self.home / "agents" / "personal.toml"
+        unrelated.parent.mkdir()
+        unrelated.write_text('name = "personal"\n')
+        self.run_install()
+        result = config.read_text()
+        parsed = tomllib.loads(result)
+        self.assertEqual(parsed["agents"], {
+            "enabled": True, "custom_setting": "keep",
+            "custom_role": {"config_file": "custom.toml"},
+        })
+        self.assertEqual(parsed["profiles"]["personal"]["agents"],
+                         {"default_subagent_model": "personal-model"})
+        self.assertIn("[agents] # Agent settings\n# Keep this standalone comment", result)
+        self.assertIn('custom_setting = "keep" # personal', result)
+        self.assertEqual(unrelated.read_text(), 'name = "personal"\n')
+        self.assertEqual(self.run_install(), [])
+
+    def test_uneditable_removed_agent_key_fails_before_any_changes(self):
+        self.home.mkdir()
+        original = b'[agents]\nenabled = true\n"default_subagent_model" = "gpt-6-luna"\n'
+        config = self.home / "config.toml"
+        config.write_bytes(original)
+        before = self.tree_state(self.home)
+        with self.assertRaisesRegex(installer.InstallError, "Cannot safely edit"):
+            self.run_install()
+        self.assertEqual(before, self.tree_state(self.home))
 
     def test_non_table_agents_values_fail_preflight(self):
         for index, value in enumerate(("[]", "0", "false")):

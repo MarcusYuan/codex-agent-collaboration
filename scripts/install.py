@@ -23,34 +23,30 @@ import tomllib
 
 
 REPO = Path(__file__).resolve().parent.parent
-ROLES = (
-    "luna_reader", "luna_browser", "sol_worker", "sol_analyst",
+ROLES = ("astra_expert", "luna_browser")
+RETIRED_ROLES = (
+    "luna_reader", "luna_worker", "sol_worker", "sol_analyst",
     "sol_reviewer", "astra_advisor",
 )
-RETIRED_ROLES = ("luna_worker",)
 ROLE_MARKER = "# Managed by codex-agent-collaboration\n"
 START = "<!-- BEGIN codex-agent-collaboration managed instructions -->"
 END = "<!-- END codex-agent-collaboration managed instructions -->"
 ROOT_KEYS = ("model", "model_reasoning_effort")
-AGENT_KEYS = (
-    "enabled", "max_concurrent_threads_per_session", "default_subagent_model",
+AGENT_KEYS = ("enabled",)
+# These settings were installed by previous releases. Remove them so ordinary
+# subagents and concurrency use Codex defaults again.
+RETIRED_AGENT_KEYS = (
+    "max_concurrent_threads_per_session", "default_subagent_model",
     "default_subagent_reasoning_effort",
 )
 ROLE_MODELS = {
-    "luna_reader": "gpt-6-luna", "sol_analyst": "gpt-6.1-sol",
-    "luna_browser": "gpt-6-luna", "sol_worker": "gpt-6.1-sol",
-    "sol_reviewer": "gpt-6.1-sol", "astra_advisor": "gpt-6-astra",
+    "astra_expert": "gpt-6-astra", "luna_browser": "gpt-6-luna",
 }
-ROLE_EFFORTS = {name: "medium" if name == "sol_worker" else "high" for name in ROLES}
+ROLE_EFFORTS = {name: "high" for name in ROLES}
 REQUIRED_CONFIG = {
     "model": "gpt-6.1-sol",
     "model_reasoning_effort": "medium",
-    "agents": {
-        "enabled": True,
-        "max_concurrent_threads_per_session": 8,
-        "default_subagent_model": "gpt-6-luna",
-        "default_subagent_reasoning_effort": "high",
-    },
+    "agents": {"enabled": True},
 }
 HEADER = re.compile(r"^\s*\[([^\[\]]+)\]\s*(?:#.*)?$")
 KEY = re.compile(r"^(\s*)([A-Za-z0-9_-]+)\s*=")
@@ -169,6 +165,8 @@ def _config(existing: bytes, desired: bytes) -> bytes:
     for key in ROOT_KEYS:
         expected[key] = wanted[key]
     expected.setdefault("agents", {}).update(wanted["agents"])
+    for key in RETIRED_AGENT_KEYS:
+        expected["agents"].pop(key, None)
     if _same_semantics(current, expected):
         return existing
 
@@ -194,6 +192,9 @@ def _config(existing: bytes, desired: bytes) -> bytes:
 
     replacements: dict[int, str] = {}
     insertions: dict[int, list[str]] = {}
+    for index, name, _ in sections["agents"]:
+        if name in RETIRED_AGENT_KEYS:
+            replacements[index] = ""
     for section_name, keys, insert_at in (
         ("root", ROOT_KEYS, first_header),
         ("agents", AGENT_KEYS, None),

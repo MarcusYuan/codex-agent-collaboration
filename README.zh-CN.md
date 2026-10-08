@@ -2,43 +2,27 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-**主智能体推进任务主线，有价值的独立工作主动委派。**
+**主智能体负责任务主线，并在独立工作有实际收益时委派。**
 
-本项目为 Codex 桌面版提供双语规则、六个可选助手角色和带备份的安装脚本。它是个人工作流配置，费用与质量效果需要在实际任务中评估。
+本项目为 Codex 桌面版提供双语规则、两个可选自定义角色和带备份的安装器。这是一套个人工作流配置，实际效果应结合任务评估。
 
 ## 默认工作方式
 
-主智能体通常使用 **GPT-6.1 Sol Medium**，负责分析、查询、方案、修改、测试和交付，用户明确选择的主模型优先。主线工作直接推进，子智能体运行期间继续处理不依赖其结果的工作。不要让主智能体只做路由，也不要把普通任务拆成固定的角色阶段。
+主智能体日常默认使用 **GPT-6.1 Sol Medium**，负责研究、分析、实现、检查和交付。用户明确选择的主模型优先。独立工作有实际收益时主动委派，并继续推进不依赖委派结果的工作。
 
-有具体收益时主动调用子智能体：困难问题需要另一种思路、查询适合独立完成、修改可以并行，或具体风险需要独立审查。无需等待用户专门提出委派要求。架构或接口变更不自动触发 Astra；咨询后也可由主智能体继续实施。
+普通查询、实现、分析和检查可以使用 Codex 内置的 `default`、`worker` 和 `explorer` 智能体及其默认继承设置，无需自定义角色。
 
 | 角色 | 模型 / 推理强度 | 按需用途 |
 | --- | --- | --- |
-| 主智能体 | GPT-6.1 Sol / Medium | 推进主线、委派有价值的独立工作、整合结果并交付 |
-| luna_reader | GPT-6 Luna / High | 独立只读查询 |
-| luna_browser | GPT-6 Luna / High | 电脑、浏览器/CDP、实时 UI 操作 |
-| sol_worker | GPT-6.1 Sol / Medium | 有明确范围的实现、普通分析和相关检查 |
-| sol_analyst | GPT-6.1 Sol / High | 困难诊断与技术判断；受委派时完成紧密相关的修复 |
-| sol_reviewer | GPT-6.1 Sol / High | 有具体需要的独立审查 |
-| astra_advisor | GPT-6 Astra / High | 困难问题或重大不确定性的只读建议 |
+| 主智能体 | GPT-6.1 Sol / Medium | 负责主线和最终交付 |
+| astra_expert | GPT-6 Astra / High | 困难根因、重大不确定性或复杂决策；可按任务分析、实施和验证 |
+| luna_browser | GPT-6 Luna / High | 实时电脑、浏览器/CDP、桌面和 UI 测试操作，包括通过脚本包装的操作 |
 
-普通分析与实现使用 Medium；存在重大不确定性或困难推理时考虑 High，不要求实施前固定经过独立分析阶段。
-
-**computer-use 和 CDP 仍固定使用 Luna。** 普通网页/文档查询和非 UI 检查可由主智能体直接进行，实时浏览器或桌面操作交给 luna_browser。
-
-例如“设置页面无法保存”：主智能体查代码并修复，Luna 负责浏览器复现和回归。只有根因难以确定或存在独立审查需求时，再增加相应助手。不要为了覆盖六个角色而增加交接。
-
-这些是行为规则，不是强制调度或工具权限隔离。完整说明见[任务矩阵与交接约定](docs/workflow.zh-CN.md)。
-
-## 子智能体上下文
-
-每次委派新建代理，默认显式设置 `fork_turns: "none"`，提供当前目标、必要背景、范围和验收条件。如果关键背景散落在对话中且无法可靠概括，可以审慎选择工具支持的最近若干轮或 `"all"`，说明原因，并重申最新要求和已废弃方案。遵守用户明确指定的继承方式；不要省略 `fork_turns`。任务完成后不复用；后续由主智能体完成或新建代理。同一次未完成任务可以补充信息和纠偏。
-
-独立上下文不隔离共享工作区或浏览器状态。新代理仍应读取当前资料，主智能体可以传递仍适用的证据和失败记录。这是本项目的工作流选择，不是 OpenAI 禁止复用代理。
+普通网页搜索和文档查询无需使用 luna_browser。自定义角色均为可选项，不构成强制工作阶段。参见[工作流说明](docs/workflow.zh-CN.md)。
 
 ## 安装到桌面版
 
-使用支持自定义子智能体的桌面版本。安装脚本要求 **Python 3.11 或更新版本**，只使用标准库，直接更新本地配置文件，不需要 Codex CLI。如果系统 python3 较旧，请改用兼容 Python 解释器的路径。
+使用 Codex 桌面版。不要使用 Codex CLI；运行下方 Python 安装器不属于使用 Codex CLI。安装器要求 **Python 3.11 或更新版本**，只使用标准库，并会修改本地配置文件。
 
 下载或克隆仓库，在终端进入仓库目录，先预览：
 
@@ -54,7 +38,9 @@ python3 scripts/install.py --language zh-CN
 
 目标默认取已有 CODEX_HOME 环境设置，否则使用 ~/.codex。其他桌面配置目录可用 --codex-home /绝对路径 指定。英文规则使用 --language en，只需安装一种语言。
 
-安装器管理 AGENTS.md 中带标记的协作区块、agents/ 下六个文件，以及 [config/codex.toml](config/codex.toml) 中的主模型和子模型默认设置。无关配置会保留；有变化的已有文件备份到 backups/codex-agent-collaboration/。相同内容重复安装不会修改文件，预览不会写入文件。升级还会备份并移除已退役的受管 `agents/luna_worker.toml`，新增 `sol_analyst`，将 `sol_worker` 设为 Medium。如果旧角色路径是非托管文件，安装会在任何修改前停止，即使指定 `--replace-roles` 也不会删除它；应先手动保留或迁移该文件。预览用 `Would remove` 标明待删除项，`--check` 将其报告为漂移。
+安装器管理 AGENTS.md 中带标记的协作区块、受管的 `astra_expert` 和 `luna_browser` 角色文件，以及 [config/codex.toml](config/codex.toml)。项目配置仅设置主模型（`gpt-6.1-sol`）、其推理强度（`medium`）和 `agents.enabled = true`；不设置普通子智能体模型或并发上限。无关配置会保留；有变化的已有文件备份到 backups/codex-agent-collaboration/。
+
+升级时，安装器会备份并删除项目管理的旧角色文件：`luna_reader`、`luna_worker`、`sol_worker`、`sol_analyst`、`sol_reviewer` 和 `astra_advisor`。同名的非托管文件会受保护，不会被删除。旧的全局子智能体模型、推理强度和并发默认值会被移除，无关设置保留。内容相同则不做修改；预览不会写入文件。与非托管目标文件冲突时，可能需要先手动处理。
 
 要检查磁盘上的受管文件是否与所选安装内容一致，运行：
 
@@ -62,7 +48,7 @@ python3 scripts/install.py --language zh-CN
 python3 scripts/install.py --language zh-CN --check
 ~~~
 
-`--check` 使用与预览相同的只读预检和差异计算。内容一致时输出 `Already up to date.` 并以 0 退出；有漂移时每个缺失或不同的目标输出一行 `Drift: <path>`，并以 2 退出；检查或参数错误输出到 stderr，并以 1 退出。`--check` 不能与 `--dry-run` 同时使用。可将 `--check` 与 `--replace-instructions` 或 `--replace-roles` 联用，按对应安装策略进行比较。`--dry-run` 列出待更新内容时仍以 0 退出。此检查只核对磁盘上的受管内容，不能证明正在运行的桌面任务实际使用了哪些模型、角色或工具。
+`--check` 执行只读预检和比较。内容一致时输出 `Already up to date.` 并以 0 退出；有漂移时每个缺失或不同的目标输出一行 `Drift: <path>`，并以 2 退出；检查或参数错误输出到 stderr，并以 1 退出。`--check` 不能与 `--dry-run` 同时使用。可将 `--check` 与 `--replace-instructions` 或 `--replace-roles` 联用，按对应安装策略进行比较。`--dry-run` 列出待更新内容时仍以 0 退出。此检查只核对磁盘上的受管内容，不能证明正在运行的桌面任务实际使用了哪些模型、角色或工具。
 
 已有非托管指令和冲突的角色文件默认受保护。如果已检查并确定要替换，可以显式预览：
 
@@ -72,29 +58,29 @@ python3 scripts/install.py --language zh-CN --replace-instructions --replace-rol
 
 去掉 --dry-run 后应用。**--replace-instructions 会替换整个非托管指令文件**，使用前应合并或另行保留无关约定。非空 AGENTS.override.md 优先生效，需先处理后再安装。审批设置、凭据、MCP 连接和插件不会被修改。
 
-安装后在**桌面应用中新建任务**。已有任务可能仍持有旧规则或角色定义。确认新任务能发现六个角色，且 luna_browser 能访问目标工具。配置有效本身不能证明运行时工具已可用。
+安装后在**桌面应用中新建任务**。已有任务可能仍持有旧规则或角色定义。检查新任务能否发现两个自定义角色，以及 luna_browser 是否能访问目标工具。配置有效本身不能证明运行时工具已可用。
 
-如果曾把旧规则粘贴到桌面个性化设置，也需在应用里同步更新那份内容。文件安装不会同步个性化设置。
+如果曾把旧规则粘贴到桌面个性化设置，也需在应用里同步更新。文件安装不会同步个性化设置。
 
 ## 手动安装或只用于一个项目
 
-把[英文](AGENTS.md)或[中文](AGENTS.zh-CN.md)规则合并进对应 AGENTS.md。将[角色文件](agents/)复制到 ~/.codex/agents/ 供个人使用，或项目 .codex/agents/。把 [config/codex.toml](config/codex.toml) 合并进对应配置，避免追加重复的 agents 表，并保留原有项目约束。
+把[英文](AGENTS.md)或[中文](AGENTS.zh-CN.md)规则合并进对应 AGENTS.md。将[当前角色文件](agents/)复制到 ~/.codex/agents/ 供个人使用，或项目 .codex/agents/。把 [config/codex.toml](config/codex.toml) 合并进对应配置，避免追加重复的 agents 表，并保留其他项目设置。
 
 只复制指令文件不会安装角色，也不会提供浏览器工具。
 
 ## 依据与评估
 
-OpenAI 文档支持自定义子模型、后续消息调度，并提供了使用 Chrome DevTools 子智能体调试前端的例子。本项目的职责分工和固定 Luna 浏览器策略属于工作流选择。参见 [Subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents)、[配置参考](https://learn.chatgpt.com/docs/config-file/config-reference)、[AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md) 和 [Computer Use](https://learn.chatgpt.com/docs/computer-use)。
+OpenAI 官方文档参见 [Subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents) 和[多智能体工作流](https://developers.openai.com/api/docs/guides/responses-multi-agent)。本项目的委派选择属于工作流建议。
 
-用有代表性的任务记录验收结果、返工、总耗时、交接次数和可获得的模型用量，再判断费用与质量效果。多个智能体也会增加协调与上下文开销。
+用有代表性的任务记录验收结果、返工、总耗时、交接次数和可获得的模型用量，再评估费用与质量。多个智能体也会增加协调与上下文开销。
 
 ## 仓库与贡献
 
-- [AGENTS.md](AGENTS.md)、[AGENTS.zh-CN.md](AGENTS.zh-CN.md)：可安装的路由规则。
+- [AGENTS.md](AGENTS.md)、[AGENTS.zh-CN.md](AGENTS.zh-CN.md)：可安装的协作规则。
 - [agents/](agents/)、[config/codex.toml](config/codex.toml)、[安装器](scripts/install.py)：桌面配置。
-- [工作流说明](docs/workflow.zh-CN.md)：任务矩阵与交接格式。
+- [工作流说明](docs/workflow.zh-CN.md)：委派建议。
 - [原始规则](docs/original-config.zh-CN.md)、[截图](assets/codex-personalization-original.png)、[配图提示词](docs/image-prompts.md)：历史资料，不作为当前安装配置。
 
-改变规则时说明真实任务并同步更新双语版本。用 Python 3.11+ 运行安装器检查：python3 -m unittest discover -s tests。
+修改规则时保持中英文活动文档一致。可用 Python 3.11+ 检查项目安装器：`python3 -m unittest discover -s tests`。
 
 MIT 许可证，见 [LICENSE](LICENSE)。
