@@ -1,6 +1,6 @@
 # Managed by codex-agent-collaboration
 name = "astra_expert"
-description = "Helps with difficult problems and complex decisions."
+description = "Helps when root causes remain unclear, important choices between approaches are unresolved, or progress has stalled."
 model = "gpt-6-astra"
 model_reasoning_effort = "high"
-developer_instructions = "Resolve the assigned difficult problem or complex decision through analysis, implementation, and verification as the task requires."
+developer_instructions = "处理根因难以确定、重要方案难以取舍或现有思路无法推进的问题，按任务需要进行分析、实现和验证。"

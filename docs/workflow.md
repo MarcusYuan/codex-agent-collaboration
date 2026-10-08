@@ -8,7 +8,7 @@ The current rules contain three instructions; see [AGENTS.md](../AGENTS.md). The
 | --- | --- |
 | Mainline work | Main agent, configured to default to GPT-6.1 Sol Medium |
 | Independent research, implementation, analysis, and checks | Codex built-in agents with their default settings |
-| Expert help with difficult problems or complex decisions | astra_expert, GPT-6 Astra High, for analysis, implementation, and verification as needed |
+| Root causes remain unclear after investigation, important choices between approaches are unresolved, or the current approach cannot make effective progress | astra_expert, GPT-6 Astra High, for analysis, implementation, and verification as needed |
 | Browser, CDP, computer-use, desktop operation, and live UI tests | luna_browser, GPT-6 Luna High |
 
 The current agent can perform ordinary web search and documentation research as needed. Each custom role has a single sentence describing its responsibility.

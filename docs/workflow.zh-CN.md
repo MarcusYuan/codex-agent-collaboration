@@ -8,7 +8,7 @@
 | --- | --- |
 | 主线工作 | 主 agent，配置默认值为 GPT-6.1 Sol Medium |
 | 独立查询、实现、分析和检查 | Codex 内置智能体，使用默认配置 |
-| 困难问题或复杂决策需要专家协助 | astra_expert，GPT-6 Astra High，按任务进行分析、实现和验证 |
+| 根因经排查仍不明确、重要方案难以取舍或现有思路无法有效推进 | astra_expert，GPT-6 Astra High，按任务进行分析、实现和验证 |
 | 浏览器、CDP、computer-use、桌面操作和实时 UI 测试 | luna_browser，GPT-6 Luna High |
 
 普通网页搜索和文档查询由当前 agent 按需完成。两个自定义角色的提示词各为一句职责说明。
