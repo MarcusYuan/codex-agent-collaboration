@@ -4,7 +4,7 @@
 
 **The main agent owns the task and delegates independent work when it has a practical benefit.**
 
-This project provides bilingual instructions, two optional custom roles, and a backup-aware installer for Codex desktop. It is a personal workflow configuration; evaluate its effects on actual tasks.
+This project provides three bilingual instructions, two custom roles, and a backup-aware installer for Codex desktop. Each role has a single sentence describing its responsibility.
 
 ## Default workflow
 
