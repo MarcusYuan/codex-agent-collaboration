@@ -1,5 +1,3 @@
-1. The main agent advances and completes the task. Proactively use Codex's native multi-agent collaboration when work can be carried out independently.
+1. When investigation leaves the root cause unclear, an important choice between approaches remains unresolved, or the current approach cannot make effective progress, proactively use astra_expert (GPT-6 Astra High) for analysis, implementation, and verification as the task requires.
 
-2. When investigation leaves the root cause unclear, an important choice between approaches remains unresolved, or the current approach cannot make effective progress, proactively use astra_expert (GPT-6 Astra High) for analysis, implementation, and verification as the task requires.
-
-3. Use luna_browser (GPT-6 Luna High) for browser, CDP, computer-use, desktop operation, and live UI tests. The current agent can perform ordinary web search and documentation research as needed.
+2. Use luna_browser (GPT-6 Luna High) for browser, CDP, computer-use, desktop operation, and live UI tests. The current agent can perform ordinary web search and documentation research as needed.

@@ -2,15 +2,13 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-**The main agent owns the task and delegates independent work when it has a practical benefit.**
+**Call the Astra expert and Luna browser assistant as needed.**
 
-This project provides three bilingual instructions, two custom roles, and a backup-aware installer for Codex desktop. Each role has a single sentence describing its responsibility.
+This project provides two bilingual instructions, two custom roles, and a backup-aware installer for Codex desktop. Each role has a single sentence describing its responsibility.
 
-## Default workflow
+## Models and roles
 
-The main agent normally uses **GPT-6.1 Sol Medium** and owns research, analysis, implementation, checks, and delivery. Respect the user's explicit main-model choice. Delegate when independent work has a practical benefit, and continue work that does not depend on delegated results.
-
-Use Codex's built-in `default`, `worker`, and `explorer` agents for ordinary research, implementation, analysis, or checks, with their normal inherited settings. They do not require custom roles.
+The configured main model defaults to **GPT-6.1 Sol Medium**. Respect the user's explicit main-model choice.
 
 | Role | Model / effort | Optional use |
 | --- | --- | --- |
