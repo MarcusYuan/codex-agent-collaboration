@@ -13,7 +13,7 @@ The configured main model defaults to **GPT-6.1 Sol Medium**. Respect the user's
 | Role | Model / effort | Optional use |
 | --- | --- | --- |
 | Main agent | GPT-6.1 Sol / Medium | Owns the mainline and final delivery |
-| astra_expert | GPT-6 Astra / High | Root causes remain unclear after investigation, important choices between approaches are unresolved, or the current approach cannot make effective progress; analyze, implement, and verify as needed |
+| astra_expert | GPT-6 Astra / High | Only for specific complex reasoning or solution decisions that still block the main agent after substantive analysis and targeted attempts |
 | luna_browser | GPT-6 Luna / High | Live computer, browser/CDP, desktop, and UI-test operation, including script-wrapped operation |
 
 Ordinary web search and documentation research do not require luna_browser. The custom roles are optional and do not define mandatory workflow stages. See the [workflow guide](docs/workflow.md).

@@ -13,7 +13,7 @@
 | 角色 | 模型 / 推理强度 | 按需用途 |
 | --- | --- | --- |
 | 主智能体 | GPT-6.1 Sol / Medium | 负责主线和最终交付 |
-| astra_expert | GPT-6 Astra / High | 根因经排查仍不明确、重要方案难以取舍或现有思路无法有效推进；按任务分析、实施和验证 |
+| astra_expert | GPT-6 Astra / High | 仅在主 agent 经实质性分析和针对性尝试后仍被复杂推理或方案判断阻塞时，协助解决具体难点 |
 | luna_browser | GPT-6 Luna / High | 实时电脑、浏览器/CDP、桌面和 UI 测试操作，包括通过脚本包装的操作 |
 
 普通网页搜索和文档查询无需使用 luna_browser。自定义角色均为可选项，不构成强制工作阶段。参见[工作流说明](docs/workflow.zh-CN.md)。
