@@ -4,7 +4,7 @@
 
 **Call the Astra expert and Luna browser assistant as needed.**
 
-This project provides two bilingual instructions, two custom roles, and a backup-aware installer for Codex desktop. Each role has a single sentence describing its responsibility.
+This project provides three bilingual instructions, two custom roles, and a backup-aware installer for Codex desktop. Each role has a single sentence describing its responsibility.
 
 ## Models and roles
 
@@ -13,10 +13,11 @@ The configured main model defaults to **GPT-6.1 Sol Medium**. Respect the user's
 | Role | Model / effort | Optional use |
 | --- | --- | --- |
 | Main agent | GPT-6.1 Sol / Medium | Owns the mainline and final delivery |
+| Delegated development with clear goals and scope | GPT-6.1 Sol / Medium | Necessary analysis, implementation, and verification when delegation is useful |
 | astra_expert | GPT-6 Astra / High | Only for specific complex reasoning or solution decisions that still block the main agent after substantive analysis and targeted attempts |
 | luna_browser | GPT-6 Luna / High | Live computer, browser/CDP, desktop, and UI-test operation, including script-wrapped operation |
 
-Ordinary web search and documentation research do not require luna_browser. The custom roles are optional and do not define mandatory workflow stages. See the [workflow guide](docs/workflow.md).
+For development tasks with clear goals and scope, the main agent executes directly when it already uses GPT-6.1 Sol Medium; delegated development uses the same configuration. Ordinary web search and documentation research do not require luna_browser. The custom roles are optional and do not define mandatory workflow stages. See the [workflow guide](docs/workflow.md).
 
 ## Install for the desktop app
 

@@ -2,11 +2,12 @@
 
 [English](workflow.md) · [简体中文](workflow.zh-CN.md)
 
-当前规则只有 Astra 和 Luna 两条用途说明，见 [AGENTS.zh-CN.md](../AGENTS.zh-CN.md)。
+当前三条规则分别说明目标和范围明确的开发、Astra 协助和 Luna 操作，见 [AGENTS.zh-CN.md](../AGENTS.zh-CN.md)。
 
 | 用途 | 智能体与配置 |
 | --- | --- |
 | 主线工作 | 主 agent，配置默认值为 GPT-6.1 Sol Medium |
+| 目标和范围明确的开发任务 | GPT-6.1 Sol Medium；主 agent 已使用该配置时直接执行，需要委派时子 agent 使用相同配置 |
 | 主 agent 经实质性分析和针对性尝试后，仍因复杂推理或方案判断无法有效推进 | astra_expert，GPT-6 Astra High，按任务进行分析、实现和验证 |
 | 浏览器、CDP、computer-use、桌面操作和实时 UI 测试 | luna_browser，GPT-6 Luna High |
 

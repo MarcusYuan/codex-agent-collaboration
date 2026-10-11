@@ -2,11 +2,12 @@
 
 [English](workflow.md) · [简体中文](workflow.zh-CN.md)
 
-The current rules describe the responsibilities of Astra and Luna in two instructions; see [AGENTS.md](../AGENTS.md).
+The three current instructions cover development with clear goals and scope, Astra assistance, and Luna operation; see [AGENTS.md](../AGENTS.md).
 
 | Purpose | Agent and configuration |
 | --- | --- |
 | Mainline work | Main agent, configured to default to GPT-6.1 Sol Medium |
+| Development with clear goals and scope | GPT-6.1 Sol Medium; execute directly if the main agent already uses this configuration, and use the same configuration when delegating |
 | Complex reasoning or solution decisions still block the main agent after substantive analysis and targeted attempts | astra_expert, GPT-6 Astra High, for analysis, implementation, and verification as needed |
 | Browser, CDP, computer-use, desktop operation, and live UI tests | luna_browser, GPT-6 Luna High |
 
